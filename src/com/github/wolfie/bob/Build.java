@@ -6,20 +6,18 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.DiagnosticListener;
-import javax.tools.FileObject;
-import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaCompiler;
-import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
-import javax.tools.JavaFileObject.Kind;
 
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BuildError;
@@ -62,6 +60,7 @@ public abstract class Build {
   public final static void main(final String[] args) throws Exception {
     processArgs(args);
     
+    // TODO: this isn't main-material, you silly nerd.
     final Set<File> files = getSourceFiles();
     tempDir = getTargetDirectory();
     compileFiles(files);
@@ -116,10 +115,23 @@ public abstract class Build {
         }
         
         if (isSuitableMethod) {
-          Log.fine("Found suitable method \"" + method.getName() + "\" in "
+          Log.fine("Found suitable target \"" + method.getName() + "\" in "
               + clazz.getName());
           methods.add(method);
         }
+      }
+
+      else if (method.getName().equals(DEFAULT_BUILD_TARGET_NAME)
+          && method.getReturnType().equals(BUILD_TARGET_RETURN_CLASS)
+          && method.getParameterTypes().length == 0) {
+        
+        /*
+         * Nag about annotations. I think it's better to always to use
+         * annotations instead of having exceptions
+         */
+        Log.warning("Default build target \"" + DEFAULT_BUILD_TARGET_NAME
+            + "\" found in class " + clazz.getName()
+            + ", but it was not properly annotated. Ignoring.");
       }
     }
     
@@ -170,42 +182,21 @@ public abstract class Build {
   
   private static void compileFiles(final Set<File> files) throws IOException {
     if (files != null && !files.isEmpty()) {
-      System.out.println("\nCompiling files: ");
-      for (final File file : files) {
-        System.out.println(file);
-      }
+      Log.info("Found the following files:\n" + Util.implode("\n", files));
       
       final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+      
       final StandardJavaFileManager fileManager = compiler
           .getStandardFileManager(BUILD_DIAGNOSTIC_LISTENER, null, null);
+      fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections
+          .singleton(new File("result/")));
+      
       final Iterable<? extends JavaFileObject> javaFiles = fileManager
           .getJavaFileObjectsFromFiles(files);
       final DiagnosticCollector<JavaFileObject> diagnosticCollector = new DiagnosticCollector<JavaFileObject>();
       
-      final JavaFileManager forwardingJavaFileManager = new ForwardingJavaFileManager<JavaFileManager>(
-          fileManager) {
-        @Override
-        public JavaFileObject getJavaFileForOutput(final Location location,
-            final String className, final Kind kind, final FileObject sibling)
-            throws IOException {
-          System.out.println();
-          System.out.println("location: " + location);
-          System.out.println("classname: " + className);
-          System.out.println("kind: " + kind);
-          System.out.println("sibling: " + sibling);
-          
-          final JavaFileObject javaFileForOutput = super.getJavaFileForOutput(
-              location, className, kind, sibling);
-          System.out.println("output:" + javaFileForOutput);
-          final JavaFileObject bobJavaFileObject = new RedirectingJavaFileObject(
-              javaFileForOutput, tempDir);
-          System.out.println("corrected output: " + bobJavaFileObject);
-          return bobJavaFileObject;
-        }
-      };
-      
-      compiler.getTask(null, forwardingJavaFileManager, diagnosticCollector,
-          null, null, javaFiles).call();
+      compiler.getTask(null, fileManager, diagnosticCollector, null, null,
+          javaFiles).call();
       
       System.out.println("\nDiagnostics: ");
       for (final Diagnostic<? extends JavaFileObject> diagnostic : diagnosticCollector
