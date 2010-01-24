@@ -1,0 +1,3 @@
+Unless you _really_ like pain (or helping out), don't use this code just yet.
+
+Licensed under Apache 2.0, though.
