@@ -1,3 +1,14 @@
 Unless you _really_ like pain (or helping out), don't use this code just yet.
 
 Licensed under Apache 2.0, though.
+
+1.0.0 is considered done when Bob can...
+
+ * run as both a targeted class and a single CLI-command
+ * compile a source tree
+ * package a JAR
+  * with or without source
+  * using a defined MANIFEST file
+ * package a WAR, like the WAR but also
+  * define libraries
+  * define a web.xml file
