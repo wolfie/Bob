@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	Well, a man's gotta do, what a man's gotta do. Needs to be bootstrapped somehow... 
+	Switching to dogfood asap, though.
+-->
+
+<project name="Bob" default="jar" basedir=".">
+	<property name="tempDir" value="/tmp/bobbuild"/>
+	<property name="srcDir" value="src"/>
+	<property name="manifest.mf" value="META-INF/MANIFEST.MF"/>
+	
+
+	<target name="clean">
+		<delete dir="${tempDir}"/>
+	</target>
+	
+	<target name="compile" depends="clean">
+		<mkdir dir="${tempDir}"/>
+		<javac 
+			debug="yes" 
+			destdir="${tempDir}" 
+			srcdir="${srcDir}" 
+		/>
+	</target>
+	
+	<target name="jar" depends="compile">
+		<jar 
+			destfile="bob.jar" 
+			basedir="${tempDir}" 
+			manifest="${manifest.mf}"
+		/>
+	</target>
+</project>
