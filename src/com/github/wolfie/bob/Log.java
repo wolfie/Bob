@@ -1,21 +1,56 @@
 package com.github.wolfie.bob;
 
-import java.util.logging.ConsoleHandler;
+import java.io.PrintStream;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-
 public class Log {
+  private static class BobHandler extends Handler {
+    
+    @Override
+    public void publish(final LogRecord record) {
+      final PrintStream log;
+      if (record.getLevel().equals(Level.SEVERE)) {
+        log = System.err;
+      } else {
+        log = System.out;
+      }
+      
+      final Throwable filledStackTrace = new Exception().fillInStackTrace();
+      final StackTraceElement[] stackTraceElements = filledStackTrace
+          .getStackTrace();
+      final String caller = getSimpleName(stackTraceElements[6].getClassName());
+      log.printf("[%s] %tT, %s\n", caller, record.getMillis(), record
+          .getMessage());
+    }
+    
+    private String getSimpleName(final String className) {
+      if (className.contains(".")) {
+        return className.substring(className.lastIndexOf('.') + 1);
+      } else {
+        return className;
+      }
+    }
+    
+    @Override
+    public void flush() {
+    }
+    
+    @Override
+    public void close() throws SecurityException {
+    }
+    
+  }
+  
   private static final Logger logger = Logger.getLogger(Bob.class.getPackage()
       .toString());
-  private static final Handler handler = new ConsoleHandler();
   
   static {
-    logger.addHandler(handler);
     logger.setLevel(Level.ALL);
-    handler.setLevel(Level.ALL);
+    logger.setUseParentHandlers(false);
+    logger.addHandler(new BobHandler());
   }
   
   public static void log(final LogRecord record) {

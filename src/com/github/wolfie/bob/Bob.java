@@ -19,9 +19,13 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
+import com.github.wolfie.bob.exception.CompilationFailedException;
+import com.github.wolfie.bob.exception.IncompatibleReturnTypeException;
 import com.github.wolfie.bob.exception.NoBuildDirectoryFoundException;
 import com.github.wolfie.bob.exception.NoBuildFileFoundException;
+import com.github.wolfie.bob.exception.NoBuildTargetMethodFoundException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
 
 /**
@@ -56,59 +60,59 @@ public class Bob {
       
       final Method buildMethod = getBuildMethod(buildClass);
       
+      Action result = null;
       try {
-        buildMethod.invoke(null);
+        result = (Action) buildMethod.invoke(null);
       } catch (final NullPointerException e) {
         // as per javadoc, the method was not static.
         
         try {
           final Object buildObject = buildClass.newInstance();
-          buildMethod.invoke(buildObject);
+          result = (Action) buildMethod.invoke(buildObject);
         } catch (final InstantiationException e2) {
           System.err.println(buildMethod + " is an instance method, but the"
               + " class doesn't have a public default constructor.");
           e2.printStackTrace();
+          System.exit(1);
         } catch (final IllegalAccessException e2) {
           System.err.println(buildMethod + " is an instance method, but the"
               + " class doesn't have a public default constructor.");
           e2.printStackTrace();
+          System.exit(1);
         }
       } catch (final IllegalArgumentException e) {
         System.err.println(buildMethod.getName() + " was annotated with @"
             + Target.class.getName() + ", but the method requires arguments, "
             + "which it may not do.");
         e.printStackTrace();
+        System.exit(1);
       } catch (final IllegalAccessException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
+        System.exit(1);
       }
-    } catch (final NoBuildDirectoryFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (final NoBuildFileFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (final CompilationFailedException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      
+      if (result != null) {
+        result.process();
+        Log.info("Build complete");
+      } else {
+        throw new NullPointerException(String.format("%s.%s() returned null.",
+            buildClass.getName(), buildMethod.getName()));
+      }
     } catch (final MalformedURLException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
+      System.exit(1);
     } catch (final ClassNotFoundException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-    } catch (final NoBuildTargetMethodFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      System.exit(1);
     } catch (final InvocationTargetException e) {
       System.err.println("The build method threw unhandled exceptions. "
           + "See below for more details.");
       e.printStackTrace();
-    } catch (final SeveralDefaultBuildTargetMethodsFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      System.exit(1);
     }
-    
   }
   
   /**
@@ -136,12 +140,15 @@ public class Bob {
    * @throws SeveralDefaultBuildTargetMethodsFoundException
    *           If <tt>buildClass</tt> has more than one method annotated as a
    *           default target.
+   * @throws IncompatibleReturnTypeException
+   *           If any defined build target method in <tt>buildClass</tt> returns
+   *           something other than an implementation of {@link Action}.
    */
   private static Method getBuildMethod(final Class<?> buildClass)
       throws NoBuildTargetMethodFoundException,
       SeveralDefaultBuildTargetMethodsFoundException {
     
-    // TODO: make command-line target invocation possible.
+    // TODO: make command-line target specification possible.
     
     Method defaultAnnotatedMethod = null;
     Method defaultNameMethod = null;
@@ -161,16 +168,25 @@ public class Bob {
         } else if (method.getName().equals(DEFAULT_BUILD_METHOD_NAME)) {
           defaultNameMethod = method;
         }
+        
+        // sanity check of return type.
+        if (!Action.class.isAssignableFrom(method.getReturnType())) {
+          throw new IncompatibleReturnTypeException(method);
+        }
       }
     }
     
+    final Method chosenMethod;
+    
     if (defaultAnnotatedMethod != null) {
-      return defaultAnnotatedMethod;
+      chosenMethod = defaultAnnotatedMethod;
     } else if (defaultNameMethod != null) {
-      return defaultNameMethod;
+      chosenMethod = defaultNameMethod;
     } else {
       throw new NoBuildTargetMethodFoundException(buildClass);
     }
+    
+    return chosenMethod;
   }
   
   private static String getBuildClassName() {
@@ -184,12 +200,7 @@ public class Bob {
     final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     
     try {
-      final File tempDir = File.createTempFile("bob", null);
-      tempDir.delete();
-      if (!tempDir.mkdir()) {
-        throw new CompilationFailedException(
-            "could not create temporary directory " + tempDir.getAbsolutePath());
-      }
+      final File tempDir = Util.getTemporaryDirectory();
       
       final DiagnosticCollector<JavaFileObject> diagnosticListener = new DiagnosticCollector<JavaFileObject>();
       final StandardJavaFileManager fileManager = compiler

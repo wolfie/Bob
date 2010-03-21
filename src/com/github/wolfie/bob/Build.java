@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BuildError;
 

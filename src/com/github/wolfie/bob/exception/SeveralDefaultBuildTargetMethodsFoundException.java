@@ -1,7 +1,7 @@
 package com.github.wolfie.bob.exception;
 
 public class SeveralDefaultBuildTargetMethodsFoundException extends
-    BobCheckedException {
+    BobRuntimeException {
   
   private static final long serialVersionUID = 819241842601637688L;
   

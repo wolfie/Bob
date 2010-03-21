@@ -1,8 +1,10 @@
+import com.github.wolfie.bob.action.Action;
+import com.github.wolfie.bob.action.Jar;
 import com.github.wolfie.bob.annotation.Target;
 
 public class Default {
   @Target(defaultTarget = true)
-  public void build() {
-    System.out.println(getClass().getName() + ".build()");
+  public Action build() {
+    return new Jar("result/bob.jar");
   }
 }

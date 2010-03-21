@@ -1,8 +1,7 @@
-package com.github.wolfie.bob;
+package com.github.wolfie.bob.exception;
 
-import com.github.wolfie.bob.exception.BobCheckedException;
 
-public class CompilationFailedException extends BobCheckedException {
+public class CompilationFailedException extends BobRuntimeException {
   private static final long serialVersionUID = -6346445193807399597L;
   
   public CompilationFailedException(final String string) {
@@ -11,5 +10,9 @@ public class CompilationFailedException extends BobCheckedException {
   
   public CompilationFailedException(final Throwable e) {
     super(e);
+  }
+  
+  public CompilationFailedException(final String msg, final Throwable cause) {
+    super(msg, cause);
   }
 }
