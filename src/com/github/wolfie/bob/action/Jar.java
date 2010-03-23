@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 
 import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
@@ -34,19 +35,41 @@ public class Jar extends AbstractArtifact implements Artifact,
   }
   
   public Jar(final File targetFile) {
-    Util.checkNulls(targetFile);
     setDestinationForceCreate(targetFile);
   }
   
-  public void setManifestFile(final File manifest) {
+  /**
+   * Define a manifest file for the Jar.
+   * 
+   * @param manifest
+   *          the {@link File} representing the manifest file.
+   * @return <code>this</code>
+   */
+  public Jar setManifestFile(final File manifest) {
+    Util.checkNulls(manifest);
     manifestFile = manifest;
+    return this;
+  }
+  
+  /**
+   * A conveniency method, equals to calling
+   * 
+   * <pre>
+   * <code>{@link #setManifestFile(File) setManifestFile}(new File("META-INF/MANIFEST.MF"));</code>
+   * </pre>
+   */
+  public Jar useDefaultManifestFile() {
+    setManifestFile(new File("META-INF/MANIFEST.MF"));
+    return this;
   }
   
   public File getSourceDirectory() {
     return sourceDir;
   }
   
-  public void setSourceDirectory(final File sourceDir) {
+  public Jar setSourceDirectory(final File sourceDir) {
+    Util.checkNulls(sourceDir);
+    
     if (!classesDirSetByUser) {
       this.sourceDir = sourceDir;
       sourceDirSetByUser = true;
@@ -55,6 +78,8 @@ public class Jar extends AbstractArtifact implements Artifact,
           + "and trying to define a source directory. "
           + "Only one may be defined.");
     }
+    
+    return this;
   }
   
   public File getManifestFile() {
@@ -65,7 +90,7 @@ public class Jar extends AbstractArtifact implements Artifact,
     return classesDir;
   }
   
-  public void setClassDirectory(final File classDirectory) {
+  public Jar setClassDirectory(final File classDirectory) {
     if (!sourceDirSetByUser) {
       classesDir = classDirectory;
       classesDirSetByUser = true;
@@ -74,6 +99,8 @@ public class Jar extends AbstractArtifact implements Artifact,
           + "and trying to define a classes directory. "
           + "Only one may be defined.");
     }
+    
+    return this;
   }
   
   public File getClassDirectory() {
@@ -93,8 +120,20 @@ public class Jar extends AbstractArtifact implements Artifact,
     
     try {
       final File destination = getDestination();
-      final JarOutputStream jarOutputStream = new JarOutputStream(
-          new FileOutputStream(destination));
+      
+      final FileOutputStream fileOutputStream = new FileOutputStream(
+          destination);
+      final JarOutputStream jarOutputStream;
+      if (manifestFile == null || !manifestFile.isFile()
+          || !manifestFile.canRead()) {
+        logWhyNoManifestFile();
+        jarOutputStream = new JarOutputStream(fileOutputStream);
+      } else {
+        Log.fine("Using manifest file: " + manifestFile.getPath());
+        final Manifest manifest = new Manifest(
+            new FileInputStream(manifestFile));
+        jarOutputStream = new JarOutputStream(fileOutputStream, manifest);
+      }
       
       Log.fine("Adding files from " + classesDir.getPath());
       final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
@@ -108,6 +147,20 @@ public class Jar extends AbstractArtifact implements Artifact,
       Log.info("Wrote " + destination.getAbsolutePath());
     } catch (final Exception e) {
       throw new ProcessingException(e);
+    }
+  }
+  
+  private void logWhyNoManifestFile() {
+    Log.finer("Not using a manifest file.");
+    
+    if (manifestFile != null) {
+      if (!manifestFile.exists()) {
+        Log.finer(manifestFile.getPath() + " does not exist");
+      } else if (!manifestFile.canRead()) {
+        Log.finer(manifestFile.getPath() + " could not be read");
+      } else if (!manifestFile.isFile()) {
+        Log.finer(manifestFile.getPath() + " is not a file");
+      }
     }
   }
   
@@ -126,8 +179,10 @@ public class Jar extends AbstractArtifact implements Artifact,
       final JarOutputStream target) throws IOException {
     final String baseDirPath = baseDir.getPath();
     
-    final String name = source.getPath().replace(baseDirPath, "").replace("\\",
-        "/").substring(1);
+    // strip the base dir from the entry name.
+    String name = source.getPath().replace(baseDirPath, "");
+    // ZIPs require forward slashes.
+    name = name.replace("\\", "/").substring(1);
     
     Log.finer("Adding " + name);
     
@@ -138,14 +193,18 @@ public class Jar extends AbstractArtifact implements Artifact,
     final BufferedInputStream in = new BufferedInputStream(new FileInputStream(
         source));
     
-    final byte[] buffer = new byte[1024];
-    while (true) {
-      final int count = in.read(buffer);
-      if (count == -1) {
-        break;
+    try {
+      final byte[] buffer = new byte[1024];
+      while (true) {
+        final int count = in.read(buffer);
+        if (count == -1) {
+          break;
+        }
+        target.write(buffer, 0, count);
       }
-      target.write(buffer, 0, count);
+      target.closeEntry();
+    } finally {
+      in.close();
     }
-    target.closeEntry();
   }
 }

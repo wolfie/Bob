@@ -5,6 +5,6 @@ import com.github.wolfie.bob.annotation.Target;
 public class Default {
   @Target(defaultTarget = true)
   public Action build() {
-    return new Jar("result/bob.jar");
+    return new Jar("result/bob.jar").useDefaultManifestFile();
   }
 }

@@ -10,6 +10,7 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -27,6 +28,7 @@ import com.github.wolfie.bob.exception.NoBuildDirectoryFoundException;
 import com.github.wolfie.bob.exception.NoBuildFileFoundException;
 import com.github.wolfie.bob.exception.NoBuildTargetMethodFoundException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
+import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
 
 /**
  * Non-XML Builder
@@ -42,13 +44,30 @@ public class Bob {
   private final String sourceDirectory = DEFAULT_BUILD_SRC_DIR;
   private final String sourceFile = DEFAULT_BUILD_SRC_FILE;
   
+  private static boolean showHelp = false;
+  private static boolean skipBuilding = false;
+  
   public static final void main(final String[] args) {
-    new Bob().run(args);
+    try {
+      handleArgs(args);
+      
+      if (!skipBuilding) {
+        new Bob().run();
+      }
+      
+      if (showHelp) {
+        showHelp();
+      }
+      
+    } catch (final NoBuildDirectoryFoundException e) {
+      Log.severe(e.getMessage());
+      Log.severe("Are you sure you're in the right directory?");
+    } catch (final UnrecognizedArgumentException e) {
+      Log.severe(e.getMessage());
+    }
   }
   
-  private final void run(final String[] args) {
-    handleArgs(args);
-    
+  private final void run() {
     try {
       final File buildFile = getBuildFile(getBuildDirectory());
       final File buildClassFile = compile(buildFile);
@@ -280,7 +299,55 @@ public class Bob {
   
   private static void handleArgs(final String[] args) {
     for (final String arg : args) {
-      System.out.println(arg);
+      // LOGGING
+      
+      if (isAnyOf(arg, "-v", "--verbose")) {
+        Log.setLevel(Level.FINE);
+      }
+
+      else if (isAnyOf(arg, "-vv", "--very-verbose")) {
+        Log.setLevel(Level.FINER);
+      }
+
+      else if (isAnyOf(arg, "-s", "--silent")) {
+        Log.setLevel(Level.WARNING);
+      }
+
+      else if (isAnyOf(arg, "-ss", "--very-silent")) {
+        Log.setLevel(Level.SEVERE);
+      }
+
+      // END LOGGING
+      
+      else if (isAnyOf(arg, "-h", "--help")) {
+        showHelp = true;
+        skipBuilding = true;
+      }
+
+      else {
+        throw new UnrecognizedArgumentException(arg);
+      }
     }
+  }
+  
+  private static boolean isAnyOf(final String arg, final String... options) {
+    for (final String option : options) {
+      if (option.equals(arg)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  private static void showHelp() {
+    System.out.println("Usage: bob [options]");
+    System.out.println();
+    System.out.println("Options:");
+    System.out.println(" -v, --verbose          show additional build info");
+    System.out.println(" -vv, --more-verbose    show even more information");
+    System.out.println(" -s, --silent           suppress build info");
+    System.out.println(" -ss, --more-silent     suppress almost all info");
+    System.out.println(" -h, --help             show this help");
   }
 }

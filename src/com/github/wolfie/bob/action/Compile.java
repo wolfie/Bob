@@ -93,8 +93,9 @@ public class Compile extends AbstractArtifact implements HasSourceDirectory {
   }
   
   @Override
-  public void setSourceDirectory(final File sourceDirectory) {
+  public Compile setSourceDirectory(final File sourceDirectory) {
     this.sourceDirectory = sourceDirectory;
+    return this;
   }
   
   @Override
@@ -147,13 +148,15 @@ public class Compile extends AbstractArtifact implements HasSourceDirectory {
    *           if {@link #getDestination()} is called prior.
    */
   @Override
-  public void setDestination(final File directory) {
+  public Compile setDestination(final File directory) {
     if (cachedDestination == null) {
       super.setDestination(directory);
     } else {
       throw new IllegalStateException("Cannot set the destination "
           + "after it has been retrieved.");
     }
+    
+    return this;
   }
   
   /**
@@ -163,12 +166,14 @@ public class Compile extends AbstractArtifact implements HasSourceDirectory {
    *           if {@link #getDestination()} is called prior.
    */
   @Override
-  public void setDestinationForceCreate(final File directory) {
+  public Compile setDestinationForceCreate(final File directory) {
     if (cachedDestination == null) {
       super.setDestinationForceCreate(directory);
     } else {
       throw new IllegalStateException("Cannot set the destination "
           + "after it has been retrieved.");
     }
+    
+    return this;
   }
 }

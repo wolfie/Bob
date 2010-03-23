@@ -11,19 +11,23 @@ public abstract class AbstractArtifact implements Artifact {
   private boolean createPath = false;
   
   @Override
-  public void setDestination(final File destination) {
+  public AbstractArtifact setDestination(final File destination) {
     setDestination(destination, false);
+    return this;
   }
   
   @Override
-  public void setDestinationForceCreate(final File destination) {
+  public AbstractArtifact setDestinationForceCreate(final File destination) {
     setDestination(destination, true);
+    return this;
   }
   
-  private void setDestination(final File destination, final boolean createPath) {
+  private AbstractArtifact setDestination(final File destination,
+      final boolean createPath) {
     Util.checkNulls(destination);
     this.destination = destination;
     this.createPath = createPath;
+    return this;
   }
   
   /**

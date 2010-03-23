@@ -17,8 +17,9 @@ public interface Artifact extends Action {
    *          The pre-existing destination directory.
    * @throws IllegalArgumentException
    *           if <tt>directory</tt> is not an existing, readable, directory.
+   * @return <code>this</code>
    */
-  void setDestination(File directory);
+  Artifact setDestination(File directory);
   
   /**
    * <p>
@@ -32,6 +33,7 @@ public interface Artifact extends Action {
    * 
    * @param directory
    *          The destination directory.
+   * @return <code>this</code>
    */
-  void setDestinationForceCreate(File directory);
+  Artifact setDestinationForceCreate(File directory);
 }

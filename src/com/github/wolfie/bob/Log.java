@@ -11,8 +11,10 @@ public class Log {
     
     @Override
     public void publish(final LogRecord record) {
+      final Level level = record.getLevel();
+      
       final PrintStream log;
-      if (record.getLevel().equals(Level.SEVERE)) {
+      if (level.equals(Level.SEVERE)) {
         log = System.err;
       } else {
         log = System.out;
@@ -22,8 +24,13 @@ public class Log {
       final StackTraceElement[] stackTraceElements = filledStackTrace
           .getStackTrace();
       final String caller = getSimpleName(stackTraceElements[6].getClassName());
-      log.printf("[%s] %tT, %s\n", caller, record.getMillis(), record
-          .getMessage());
+      
+      if (level == Level.FINE || level == Level.FINER || level == Level.FINEST) {
+        log.printf("[%s] %tT, %s\n", caller, record.getMillis(), record
+            .getMessage());
+      } else {
+        log.printf("[%s] %s\n", caller, record.getMessage());
+      }
     }
     
     private String getSimpleName(final String className) {
@@ -44,11 +51,11 @@ public class Log {
     
   }
   
-  private static final Logger logger = Logger.getLogger(Bob.class.getPackage()
-      .toString());
+  private static final Logger logger;
   
   static {
-    logger.setLevel(Level.ALL);
+    logger = Logger.getLogger(Bob.class.getPackage().toString());
+    logger.setLevel(Level.INFO);
     logger.setUseParentHandlers(false);
     logger.addHandler(new BobHandler());
   }
