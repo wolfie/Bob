@@ -12,3 +12,8 @@ Licensed under Apache 2.0, though.
  * package a WAR, like the WAR but also
   * define libraries
   * define a web.xml file
+  
+# Other Stuff
+
+Parts from the shell script are borrowed from Ant, thus licensed under
+Apache 2.0 license to Apache Software Foundation. 
