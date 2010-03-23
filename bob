@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 # gather all command line arguments for passing on
 for arg in "$@" ; do
 	bob_args="$bob_args \"$arg\""
@@ -33,6 +35,13 @@ if [ ! -x "$JAVACMD" ] ; then
 	exit 1
 fi
 
+if [ -z "$BOB_HOME" -o ! -d "$BOB_HOME" ] ; then
+  PROGRAM="$0"
+  BOB_HOME=`dirname "$PROGRAM"`
+  BOB_HOME=`cd "$BOB_HOME" > /dev/null && pwd`
+fi
+
+
 bob_command="exec \"$JAVACMD\""
 
-eval $bob_command -jar bob.jar "$bob_args"
+eval $bob_command -jar $BOB_HOME/bob.jar "$bob_args"
