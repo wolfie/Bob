@@ -46,6 +46,7 @@ public class Bob {
   
   private static boolean showHelp = false;
   private static boolean skipBuilding = false;
+  private static boolean success = false;
   
   public static final void main(final String[] args) {
     try {
@@ -64,6 +65,15 @@ public class Bob {
       Log.severe("Are you sure you're in the right directory?");
     } catch (final UnrecognizedArgumentException e) {
       Log.severe(e.getMessage());
+    } catch (final Exception e) {
+      // catch-all last resort
+      Log.severe(e.getMessage());
+    }
+    
+    if (success) {
+      Log.info("Build successful");
+    } else {
+      Log.severe("Build FAILED!");
     }
   }
   
@@ -82,55 +92,54 @@ public class Bob {
       Action result = null;
       try {
         result = (Action) buildMethod.invoke(null);
+        execute(result, buildClass, buildMethod);
       } catch (final NullPointerException e) {
         // as per javadoc, the method was not static.
         
         try {
           final Object buildObject = buildClass.newInstance();
           result = (Action) buildMethod.invoke(buildObject);
+          execute(result, buildClass, buildMethod);
+          
         } catch (final InstantiationException e2) {
           System.err.println(buildMethod + " is an instance method, but the"
               + " class doesn't have a public default constructor.");
           e2.printStackTrace();
-          System.exit(1);
         } catch (final IllegalAccessException e2) {
           System.err.println(buildMethod + " is an instance method, but the"
               + " class doesn't have a public default constructor.");
           e2.printStackTrace();
-          System.exit(1);
         }
       } catch (final IllegalArgumentException e) {
         System.err.println(buildMethod.getName() + " was annotated with @"
             + Target.class.getName() + ", but the method requires arguments, "
             + "which it may not do.");
         e.printStackTrace();
-        System.exit(1);
       } catch (final IllegalAccessException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
-        System.exit(1);
-      }
-      
-      if (result != null) {
-        result.process();
-        Log.info("Build complete");
-      } else {
-        throw new NullPointerException(String.format("%s.%s() returned null.",
-            buildClass.getName(), buildMethod.getName()));
       }
     } catch (final MalformedURLException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-      System.exit(1);
     } catch (final ClassNotFoundException e) {
       // TODO Auto-generated catch block
       e.printStackTrace();
-      System.exit(1);
     } catch (final InvocationTargetException e) {
       System.err.println("The build method threw unhandled exceptions. "
           + "See below for more details.");
       e.printStackTrace();
-      System.exit(1);
+    }
+  }
+  
+  private static void execute(final Action result, final Class<?> buildClass,
+      final Method buildMethod) {
+    if (result != null) {
+      result.process();
+      success = true;
+    } else {
+      throw new NullPointerException(String.format("%s.%s() returned null.",
+          buildClass.getName(), buildMethod.getName()));
     }
   }
   
