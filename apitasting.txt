@@ -1,0 +1,51 @@
+@Target
+public Action build() {
+
+	Compilation compilation = new Compilation()
+		.sourcesFrom("src") // Optional. Defaults to "src" anyways
+		.withDebugInfo()
+		.useJarsAt("lib")
+		.useJarsAt("lib2")
+		.withClasspath("/someproject/classes")
+		.withClasspath("/someotherproject/classes")
+		.to("result/classes") // optional. Defaults to some temporary folder
+	;
+	
+	Jar jar = new Jar()
+		.classesFrom(compilation)
+		// or .classesFrom("classes")
+		.withSources()
+		.manifestFrom("META-INF/MANIFEST.MF")
+		// or .manifestFromDefault() // the same as above
+		// or .manifestFrom(manifestMap) // A Map<String, String>
+		.to("result/myjar.jar") // optional. Defaults to some temporary file
+	;
+	
+	War war = new War()
+		.classesFrom(compilation)
+		// or .classesFrom("classes")
+		.withSources()
+		.manifestFrom("META-INF/MANIFEST.MF")
+		// or .manifestFromDefault() // the same as above
+		// or .manifestFrom(manifestMap) // A Map<String, String>
+		.webXmlFrom("WEB-INF/web.xml") // optional. If omitted and "WEB-INF/web.xml" exists, it will be used anyways.
+		.addJarsFrom(compilation) // all jars go to /WEB-INF/lib/
+		.addJarsAt("lib3")
+		.addJar("lib4/foo.jar")
+		.addFile("/web/index.html") // will go to root
+		.addFiles("/web/pages") // all files will go to root, consistent subdirectories
+		// or .addFiles("{/web/}pages") // all files will go to /pages/
+		// or .addFiles("{/web/}pages", "site") // all files will go to /site/
+		.to("result/mywar.war") // optional. Defaults to some temporary file
+	;
+	
+	return Actions.from(jar, war);
+}
+
+@Target
+private Action simpleJar() {
+	/*
+	 * This ist
+	 */
+	return new Jar();
+}

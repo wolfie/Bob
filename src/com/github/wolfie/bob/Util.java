@@ -8,6 +8,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.github.wolfie.bob.action.NotAReadableDirectoryException;
+import com.github.wolfie.bob.exception.BobRuntimeException;
+
 public class Util {
   public interface FilePredicate {
     boolean accept(File file);
@@ -119,5 +122,76 @@ public class Util {
     }
     
     return result;
+  }
+  
+  /**
+   * Verifies that the argument is a readable directory.
+   * 
+   * @param directory
+   *          The {@link File} to check for.
+   * @return <tt>directory</tt>
+   * @throws NotAReadableDirectoryException
+   *           if <tt>directory</tt> is not a directory or it is not readable.
+   */
+  public static File checkedDirectory(final File directory) {
+    if (directory.isDirectory() && directory.canRead()) {
+      return directory;
+    } else {
+      throw new NotAReadableDirectoryException(directory);
+    }
+  }
+  
+  /**
+   * 
+   * @param directory
+   */
+  public static void createDir(final File directory) {
+    if (!directory.isDirectory()) {
+      Log.finer("Creating directory " + directory.getAbsolutePath());
+      final boolean success = directory.mkdir();
+      
+      if (!success) {
+        throw new BobRuntimeException("Could not create directory "
+            + directory.getAbsolutePath());
+      }
+    } else {
+      if (directory.isFile()) {
+        throw new BobRuntimeException("Could not create directory "
+            + directory.getAbsolutePath()
+            + " since it is an existing file.");
+      } else {
+        Log.info("Not creating " + directory.getAbsolutePath()
+            + " since it already exists.");
+      }
+    }
+  }
+  
+  /**
+   * Delete a {@link File}. If it is a normal file, it will simply be deleted.
+   * If it is a directory, it, and everything underneath, will recursively be
+   * removed.
+   * 
+   * @param file
+   *          The file to remove.
+   */
+  public static void delete(final File file) {
+    if (file.exists()) {
+      
+      if (file.isDirectory()) {
+        for (final File fileEntry : file.listFiles()) {
+          delete(fileEntry);
+        }
+      }
+      
+      Log.finer("Deleting " + file.getAbsolutePath());
+      final boolean success = file.delete();
+      if (!success) {
+        throw new BobRuntimeException("Could not delete "
+            + file.getAbsolutePath());
+      }
+    } else {
+      Log.info("Not removing " + file.getAbsolutePath()
+          + " since it does not exist.");
+    }
   }
 }
