@@ -15,7 +15,9 @@ import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
+import com.github.wolfie.bob.exception.NoSourcesToIncludeException;
 import com.github.wolfie.bob.exception.ProcessingException;
+import com.sun.tools.internal.ws.processor.ProcessorException;
 
 /**
  * Compile and package the project into a JAR file
@@ -30,67 +32,6 @@ public class Jar implements Action {
   private String manifestPath;
   private boolean sourcesFromChain;
   private String sourcesFromPath;
-  
-  // public static class Manifest {
-  //    
-  // /**
-  // * The value of this attribute specifies the relative URLs of the extensions
-  // * or libraries that this application or extension needs. URLs are separated
-  // * by one or more spaces. The application or extension class loader uses the
-  // * value of this attribute to construct its internal search path.
-  // */
-  // public static final String CLASS_PATH = "Class-Path";
-  //    
-  // /**
-  // * The value of this attribute defines the relative path of the main
-  // * application class which the launcher will load at startup time. The value
-  // * must <em>not</em> have the <tt>.class</tt> extension appended to the
-  // * class name.
-  // */
-  // public static final String MAIN_CLASS = "Main-Class";
-  //    
-  // /**
-  // * The value is a string that defines the title of the extension
-  // * implementation.
-  // */
-  // public static final String IMPLEMENTATION_TITLE = "Implementation-Title";
-  //    
-  // /**
-  // * The value is a string that defines the version of the extension
-  // * implementation.
-  // */
-  // public static final String IMPLEMENTATION_VERSION =
-  // "Implementation-Version";
-  //    
-  // /**
-  // * The value is a string that defines the organization that maintains the
-  // * extension implementation.
-  // */
-  // public static final String IMPLEMENTATION_VENDOR = "Implementation-Vendor";
-  //    
-  // /**
-  // * The value is a string id that uniquely defines the organization that
-  // * maintains the extension implementation.
-  // */
-  // public static final String IMPLEMENTATION_VENDOR_ID =
-  // "Implementation-Vendor-Id";
-  //    
-  // /**
-  // * This attribute defines the URL from which the extension implementation
-  // * can be downloaded from.
-  // */
-  // public static final String IMPLEMENTATION_URL = "Implementation-Url";
-  //    
-  // @SuppressWarnings("unused")
-  // private static final String CREATED_BY = "Created-By";
-  // @SuppressWarnings("unused")
-  // private static final String MANIFEST_VERSION = "Manifest-Version";
-  //    
-  // public Manifest put(final String key, final String value) {
-  // // TODO Auto-generated method stub
-  // return this;
-  // }
-  // }
   
   @Override
   public void process() {
@@ -114,18 +55,48 @@ public class Jar implements Action {
         jarOutputStream = new JarOutputStream(fileOutputStream);
       }
       
-      Log.fine("Adding files from " + classesDir.getPath());
+      Log.fine("Adding classfiles from " + classesDir.getAbsolutePath());
       final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
           Util.JAVA_CLASS_FILE);
       for (final File classFile : Util.normalizeFilePaths(classesDir,
           classFiles)) {
         add(classesDir, classFile, jarOutputStream);
       }
+      
+      try {
+        final File sourcesDir = getSourcesDirectory();
+        Log.fine("Adding sources from " + sourcesDir.getAbsolutePath());
+        final Collection<File> sourceFiles = Util.getFilesRecursively(
+            sourcesDir, Util.JAVA_SOURCE_FILE);
+        for (final File sourceFile : Util.normalizeFilePaths(sourcesDir,
+            sourceFiles)) {
+          add(sourcesDir, sourceFile, jarOutputStream);
+        }
+      } catch (final NoSourcesToIncludeException e) {
+        // okay, fine, no sources then.
+      }
+      
       jarOutputStream.close();
       
       Log.info("Wrote " + destination.getAbsolutePath());
     } catch (final Exception e) {
       throw new ProcessingException(e);
+    }
+  }
+  
+  private File getSourcesDirectory() throws NoSourcesToIncludeException {
+    if (sourcesFromPath != null) {
+      return new File(sourcesFromPath);
+    } else if (sourcesFromChain) {
+      if (fromCompilation != null) {
+        return fromCompilation.getSourceDirectory();
+      } else {
+        Log.severe("Although requested, no sources will be included, since " +
+            "there are no available chains to take sources from.");
+        throw new NoSourcesToIncludeException();
+      }
+    } else {
+      throw new NoSourcesToIncludeException();
     }
   }
   
@@ -161,19 +132,22 @@ public class Jar implements Action {
   
   private File getDestination() {
     if (toPath != null) {
-      return Util.checkedDirectory(clearDirectory(new File(toPath)));
+      final File destination = new File(toPath);
+      
+      if (destination.exists()) {
+        Util.delete(destination);
+      }
+      
+      final File parentFile = destination.getParentFile();
+      if (!parentFile.exists()) {
+        Util.createDir(parentFile);
+      }
+      
+      return destination;
+      
     } else {
       throw new InternalConsistencyException("No destination path defined");
     }
-  }
-  
-  private static File clearDirectory(final File destination) {
-    if (destination.exists()) {
-      Util.delete(destination);
-    }
-    
-    Util.createDir(destination);
-    return destination;
   }
   
   /**
@@ -214,10 +188,15 @@ public class Jar implements Action {
    */
   private static File getClassesDirectoryFromCompilation(
       final Compilation compilation) {
-    compilation.process();
-    
-    final File directory = compilation.getDestinationDirectory();
-    return Util.checkedDirectory(directory);
+    try {
+      compilation.to(Util.getTemporaryDirectory().getAbsolutePath());
+      compilation.process();
+      
+      final File directory = compilation.getDestinationDirectory();
+      return Util.checkedDirectory(directory);
+    } catch (final IOException e) {
+      throw new ProcessorException("Could not create a temporary directory.", e);
+    }
   }
   
   /**
@@ -304,7 +283,7 @@ public class Jar implements Action {
     return this;
   }
   
-  public Jar withManifest(final String path) {
+  public Jar withManifestFrom(final String path) {
     manifestPath = path;
     return this;
   }

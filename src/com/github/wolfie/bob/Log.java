@@ -23,7 +23,13 @@ public class Log {
       final Throwable filledStackTrace = new Exception().fillInStackTrace();
       final StackTraceElement[] stackTraceElements = filledStackTrace
           .getStackTrace();
-      final String caller = getSimpleName(stackTraceElements[6].getClassName());
+      
+      String caller;
+      int i = 6;
+      do {
+        caller = getSimpleName(stackTraceElements[i].getClassName());
+        i++;
+      } while (caller.equalsIgnoreCase(Util.class.getSimpleName()));
       
       if (level == Level.FINE || level == Level.FINER || level == Level.FINEST) {
         log.printf("[%s] %tT, %s\n", caller, record.getMillis(), record

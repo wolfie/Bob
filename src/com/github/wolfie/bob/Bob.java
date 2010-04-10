@@ -70,10 +70,14 @@ public class Bob {
       Log.severe(e.getMessage());
     }
     
-    if (success) {
-      Log.info("Build successful");
+    if (!skipBuilding) {
+      if (success) {
+        Log.info("Build successful");
+      } else {
+        Log.severe("Build FAILED!");
+      }
     } else {
-      Log.severe("Build FAILED!");
+      Log.fine("Didn't build anything");
     }
   }
   
@@ -308,14 +312,17 @@ public class Bob {
   
   private static void handleArgs(final String[] args) {
     for (final String arg : args) {
+      
       // LOGGING
       
       if (isAnyOf(arg, "-v", "--verbose")) {
         Log.setLevel(Level.FINE);
+        Log.fine("Verbose logging on");
       }
 
       else if (isAnyOf(arg, "-vv", "--very-verbose")) {
         Log.setLevel(Level.FINER);
+        Log.finer("Very verbose logging on");
       }
 
       else if (isAnyOf(arg, "-s", "--silent")) {

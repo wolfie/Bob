@@ -67,7 +67,7 @@ public class Default {
   public Action explicitJar() {
     return new Jar()
         .from(new Compilation())
-        .withManifest("META-INF/MANIFEST.MF")
+        .withManifestFrom("META-INF/MANIFEST.MF")
         .to("artifacts/build.jar");
   }
   

@@ -52,10 +52,17 @@ public class Compilation implements Action {
   
   private static final String DEFAULT_SOURCE_PATH = "src";
   private static final String DEFAULT_DESTINATION_PATH = "artifacts";
+  private static final String DEFAULT_JARS_PATH = "lib";
   
   private String sourcePath;
   private String destinationPath;
   private final Set<String> jarPaths = new HashSet<String>();
+  
+  /** The cached result for the destination */
+  private File destinationDir = null;
+  
+  /** The cached result for where the sources are */
+  private File sourceDir = null;
   
   @Override
   public void process() {
@@ -102,7 +109,17 @@ public class Compilation implements Action {
   }
   
   File getDestinationDirectory() {
-    return pathToFile(destinationPath, DEFAULT_DESTINATION_PATH);
+    if (destinationDir == null) {
+      destinationDir = new File(
+          destinationPath != null ? destinationPath
+              : DEFAULT_DESTINATION_PATH);
+      
+      if (destinationDir.exists()) {
+        Util.delete(destinationDir);
+      }
+      Util.createDir(destinationDir);
+    }
+    return destinationDir;
   }
   
   /**
@@ -122,24 +139,27 @@ public class Compilation implements Action {
    *           if the evaulated source path was either not a directory, or was
    *           not readable.
    */
-  private File getSourceDirectory() {
-    return pathToFile(sourcePath, DEFAULT_SOURCE_PATH);
-  }
-  
-  private static File pathToFile(final String path, final String defaultPath) {
-    final File sourceDir = new File(path != null ? path
-        : defaultPath);
-    
-    if (sourceDir.isDirectory() && sourceDir.canRead()) {
-      return sourceDir;
-    } else {
-      throw new CompilationFailedException(sourceDir.getAbsolutePath()
-          + " was not a directory, or was not readable");
+  File getSourceDirectory() {
+    if (sourceDir == null) {
+      final File sourceDir = new File(sourcePath != null ? sourcePath
+          : DEFAULT_SOURCE_PATH);
+      
+      if (sourceDir.isDirectory() && sourceDir.canRead()) {
+        this.sourceDir = sourceDir;
+      } else {
+        throw new CompilationFailedException("source directory "
+            + sourceDir.getAbsolutePath()
+            + " was not a directory, or was not readable");
+      }
     }
+    
+    return sourceDir;
   }
   
   private Iterable<? extends File> getClassPath() {
     final List<File> classpath = new ArrayList<File>();
+    
+    jarPaths.add(DEFAULT_JARS_PATH);
     
     for (final String jarPath : jarPaths) {
       final File jarDir = new File(jarPath);
