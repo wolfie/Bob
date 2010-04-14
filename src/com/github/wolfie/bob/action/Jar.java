@@ -6,10 +6,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
+import com.github.wolfie.bob.Bob;
 import com.github.wolfie.bob.DefaultValues;
 import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
@@ -20,9 +22,18 @@ import com.github.wolfie.bob.exception.ProcessingException;
 import com.sun.tools.internal.ws.processor.ProcessorException;
 
 /**
- * Compile and package the project into a JAR file
+ * <p>
+ * Compile and package the project into a JAR file.
+ * </p>
+ * 
+ * <p>
+ * <em>Defaults will be used as follows:</em> Manifest file will be taken from
+ * <tt>META-INF/MANIFEST.MF</tt> and a default library location of <tt>lib/</tt>
+ * will be used.
+ * </p>
  * 
  * @author Henrik Paul
+ * @since 1.0.0
  */
 public class Jar implements Action {
   
@@ -44,15 +55,26 @@ public class Jar implements Action {
       
       final FileOutputStream fileOutputStream = new FileOutputStream(
           destination);
+      
+      // can't be final, since Java doesn't understand the structure of the
+      // try/catch
       JarOutputStream jarOutputStream;
       
       try {
         final File manifestFile = getManifestFile();
         final Manifest manifest = new Manifest(
             new FileInputStream(manifestFile));
+        manifest.getMainAttributes().put(new Attributes.Name("Created-By"),
+            Bob.getVersionString());
         jarOutputStream = new JarOutputStream(fileOutputStream, manifest);
+        
       } catch (final NoManifestFileFoundException e) {
-        jarOutputStream = new JarOutputStream(fileOutputStream);
+        final Manifest emptyManifest = new Manifest();
+        emptyManifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,
+            "1");
+        emptyManifest.getMainAttributes().put(
+            new Attributes.Name("Created-By"), Bob.getVersionString());
+        jarOutputStream = new JarOutputStream(fileOutputStream, emptyManifest);
       }
       
       Log.fine("Adding classfiles from " + classesDir.getAbsolutePath());

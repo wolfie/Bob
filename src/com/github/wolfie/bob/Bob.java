@@ -37,6 +37,12 @@ import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
  * @since 1.0.0
  */
 public class Bob {
+  public static final int VERSION_MAJOR = 0;
+  public static final int VERSION_MINOR = 0;
+  public static final int VERSION_MAINTENANCE = 0;
+  public static final String VERSION_BUILD = "pre-anything";
+  public static final String VERSION;
+  
   private static final String DEFAULT_BUILD_SRC_DIR = "build";
   private static final String DEFAULT_BUILD_SRC_FILE = "Default.java";
   private static final String DEFAULT_BUILD_METHOD_NAME = "build";
@@ -47,6 +53,16 @@ public class Bob {
   private static boolean showHelp = false;
   private static boolean skipBuilding = false;
   private static boolean success = false;
+  
+  static {
+    if (VERSION_BUILD != null && !VERSION_BUILD.isEmpty()) {
+      VERSION = String.format("%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
+          VERSION_MAINTENANCE, VERSION_BUILD);
+    } else {
+      VERSION = String.format("%s.%s.%s", VERSION_MAJOR, VERSION_MINOR,
+          VERSION_MAINTENANCE);
+    }
+  }
   
   public static final void main(final String[] args) {
     try {
@@ -365,5 +381,9 @@ public class Bob {
     System.out.println(" -s, --silent           suppress build info");
     System.out.println(" -ss, --more-silent     suppress almost all info");
     System.out.println(" -h, --help             show this help");
+  }
+  
+  public static String getVersionString() {
+    return "Bob " + VERSION;
   }
 }
