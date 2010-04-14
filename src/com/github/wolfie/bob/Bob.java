@@ -40,7 +40,7 @@ public class Bob {
   public static final int VERSION_MAJOR = 0;
   public static final int VERSION_MINOR = 0;
   public static final int VERSION_MAINTENANCE = 0;
-  public static final String VERSION_BUILD = "pre-anything";
+  public static final String VERSION_BUILD = "pre-alpha";
   public static final String VERSION;
   
   private static final String DEFAULT_BUILD_SRC_DIR = "build";
