@@ -31,4 +31,15 @@
 			manifest="${manifest.mf}"
 		/>
 	</target>
+	
+	<target name="jar-without-manifest" depends="compile">
+		<jar
+			destfile="bob.jar"
+			basedir="${tempDir}"
+		>
+			<manifest>
+				<attribute name="Main-Class" value="com.github.wolfie.bob.Bob"/>
+			</manifest>	
+		</jar>
+	</target>
 </project>
