@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -64,6 +65,8 @@ public class Compilation implements Action {
   /** The cached result for where the sources are */
   private File sourceDir = null;
   
+  private boolean disableDebug = false;
+  
   @Override
   public void process() {
     final File sourceDir = getSourceDirectory();
@@ -95,7 +98,7 @@ public class Compilation implements Action {
           .getJavaFileObjectsFromFiles(javaFiles);
     
     final BobDiagnosticListener diagnosticListener = new BobDiagnosticListener();
-    compiler.getTask(null, fileManager, diagnosticListener, null, null,
+    compiler.getTask(null, fileManager, diagnosticListener, getCompilerOptions(), null,
           javaFileObjects).call();
     
     if (diagnosticListener.hasProblems()) {
@@ -105,6 +108,14 @@ public class Compilation implements Action {
         builder.append(diagnostic.getMessage(null));
       }
       throw new CompilationFailedException(builder.toString());
+    }
+  }
+  
+  private Iterable<String> getCompilerOptions() {
+    if (disableDebug) {
+      return Collections.emptySet();
+    } else {
+      return Arrays.asList("-g");
     }
   }
   
@@ -189,6 +200,11 @@ public class Compilation implements Action {
   public Compilation useJarsAt(final String jarsAt) {
     Util.checkNulls(jarsAt);
     jarPaths.add(jarsAt);
+    return this;
+  }
+  
+  public Compilation disableDebug() {
+    disableDebug = true;
     return this;
   }
 }
