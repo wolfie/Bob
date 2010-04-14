@@ -8,8 +8,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.github.wolfie.bob.action.NotAReadableDirectoryException;
 import com.github.wolfie.bob.exception.BobRuntimeException;
+import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 
 public class Util {
   public interface FilePredicate {

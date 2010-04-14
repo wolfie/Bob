@@ -1,8 +1,6 @@
-package com.github.wolfie.bob.action;
+package com.github.wolfie.bob.exception;
 
 import java.io.File;
-
-import com.github.wolfie.bob.exception.BobRuntimeException;
 
 public class NotAReadableDirectoryException extends BobRuntimeException {
   private static final long serialVersionUID = 4085543696380952836L;
