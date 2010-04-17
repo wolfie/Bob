@@ -34,7 +34,7 @@
 	
 	<target name="jar-without-manifest" depends="compile">
 		<jar
-			destfile="bob.jar"
+			destfile="bin/bob.jar"
 			basedir="${tempDir}"
 		>
 			<manifest>
