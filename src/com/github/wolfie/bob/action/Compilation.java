@@ -58,6 +58,7 @@ public class Compilation implements Action {
   private String sourcePath;
   private String destinationPath;
   private final Set<String> jarPaths = new HashSet<String>();
+  private final Set<File> usedJars = new HashSet<File>();
   
   /** The cached result for the destination */
   private File destinationDir = null;
@@ -98,7 +99,8 @@ public class Compilation implements Action {
           .getJavaFileObjectsFromFiles(javaFiles);
     
     final BobDiagnosticListener diagnosticListener = new BobDiagnosticListener();
-    compiler.getTask(null, fileManager, diagnosticListener, getCompilerOptions(), null,
+    compiler.getTask(null, fileManager, diagnosticListener,
+        getCompilerOptions(), null,
           javaFileObjects).call();
     
     if (diagnosticListener.hasProblems()) {
@@ -170,6 +172,7 @@ public class Compilation implements Action {
   private Iterable<? extends File> getClassPath() {
     final List<File> classpath = new ArrayList<File>();
     
+    usedJars.clear();
     jarPaths.add(DEFAULT_JARS_PATH);
     
     for (final String jarPath : jarPaths) {
@@ -179,12 +182,27 @@ public class Compilation implements Action {
       if (jarDir.isDirectory()) {
         for (final File jar : jarDir.listFiles(JAR_FILTER)) {
           Log.finer("Found " + jar.getAbsolutePath());
+          usedJars.add(jar);
           classpath.add(jar);
         }
       }
     }
     
     return classpath;
+  }
+  
+  /**
+   * <p>
+   * Get all the JAR-files used in this {@link Compilation}.
+   * </p>
+   * 
+   * @return A {@link Set} of {@link File}s that have been used for compilation.
+   *         <em>Note:</em> It is guaranteed that this method will return an
+   *         empty Set if the Compilation has not yet been {@link #process()
+   *         processed}.
+   */
+  Set<File> getUsedJars() {
+    return Collections.unmodifiableSet(usedJars);
   }
   
   public Compilation sourcesFrom(final String sourcePath) {

@@ -5,7 +5,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -18,6 +23,7 @@ import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
 import com.github.wolfie.bob.exception.NoSourcesToIncludeException;
+import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 import com.github.wolfie.bob.exception.ProcessingException;
 import com.sun.tools.internal.ws.processor.ProcessorException;
 
@@ -37,18 +43,55 @@ import com.sun.tools.internal.ws.processor.ProcessorException;
  */
 public class Jar implements Action {
   
-  private Compilation fromCompilation;
+  protected Compilation fromCompilation;
   private String fromPath;
-  private String toPath;
-  private String manifestPath;
+  protected String toPath;
+  protected String manifestPath;
   private boolean sourcesFromChain;
   private String sourcesFromPath;
   
+  /**
+   * Where in the Java archive the classes and sources will be placed. JAR add
+   * files in the root by default.
+   */
+  protected String archiveClassSourceDestination = "";
+  
   @Override
-  public void process() {
+  public final void process() {
     setDefaults();
     
+    // A map from jar entry name to file representation
+    final Map<String, File> entryMap = new HashMap<String, File>();
+    
     final File classesDir = getClassesDirectory();
+    
+    Log.fine("Finding classfiles from " + classesDir.getAbsolutePath());
+    final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
+        Util.JAVA_CLASS_FILE);
+    for (final File classFile : classFiles) {
+      final String entryName = archiveClassSourceDestination
+          + Util.relativeFileName(classesDir, classFile);
+      Log.finer(entryName + " <- " + classFile.getAbsolutePath());
+      entryMap.put(entryName, classFile);
+    }
+    
+    try {
+      final File sourcesDir = getSourcesDirectory();
+      Log.fine("Finding sources from " + sourcesDir.getAbsolutePath());
+      final Collection<File> sourceFiles = Util.getFilesRecursively(
+          sourcesDir, Util.JAVA_SOURCE_FILE);
+      for (final File sourceFile : sourceFiles) {
+        final String entryName = archiveClassSourceDestination
+            + Util.relativeFileName(sourcesDir, sourceFile);
+        Log.finer(entryName + " <- " + sourceFile.getAbsolutePath());
+        entryMap.put(entryName, sourceFile);
+      }
+    } catch (final NoSourcesToIncludeException e) {
+      // okay, fine, no sources then.
+    }
+    
+    // let subclasses add their own files.
+    subClassProcessHook(entryMap);
     
     try {
       final File destination = getDestination();
@@ -77,25 +120,20 @@ public class Jar implements Action {
         jarOutputStream = new JarOutputStream(fileOutputStream, emptyManifest);
       }
       
-      Log.fine("Adding classfiles from " + classesDir.getAbsolutePath());
-      final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
-          Util.JAVA_CLASS_FILE);
-      for (final File classFile : Util.normalizeFilePaths(classesDir,
-          classFiles)) {
-        add(classesDir, classFile, jarOutputStream);
-      }
+      // since the manifest will be handled by the JarOutputStream, remove the
+      // duplicate entry for that.
+      entryMap.remove("META-INF/MANIFEST.MF");
       
-      try {
-        final File sourcesDir = getSourcesDirectory();
-        Log.fine("Adding sources from " + sourcesDir.getAbsolutePath());
-        final Collection<File> sourceFiles = Util.getFilesRecursively(
-            sourcesDir, Util.JAVA_SOURCE_FILE);
-        for (final File sourceFile : Util.normalizeFilePaths(sourcesDir,
-            sourceFiles)) {
-          add(sourcesDir, sourceFile, jarOutputStream);
-        }
-      } catch (final NoSourcesToIncludeException e) {
-        // okay, fine, no sources then.
+      /*
+       * To make the Jar file look neater, let's sort the entries. Just for
+       * shits'n'giggles.
+       */
+      final List<String> entries = new ArrayList<String>(entryMap.keySet());
+      Collections.sort(entries);
+      
+      for (final String entry : entries) {
+        final File file = entryMap.get(entry);
+        add(entry, file, jarOutputStream);
       }
       
       jarOutputStream.close();
@@ -104,6 +142,31 @@ public class Jar implements Action {
     } catch (final Exception e) {
       throw new ProcessingException(e);
     }
+  }
+  
+  /**
+   * <p>
+   * A method to provide subclasses a hook for adding their own files into the
+   * Jar-format file.
+   * </p>
+   * 
+   * <p>
+   * <strong>Note:</strong> All overriding methods must, at some point, call the
+   * method in the superclass.</em>
+   * </p>
+   * 
+   * <p>
+   * <strong>Note:</strong> To avoid overwriting existing entries, prefer
+   * {@link Util#putIfNotExists(Object, Object, Map)}
+   * </p>
+   * 
+   * @param filesToPackage
+   *          A mutable {@link Map} of <em>Jar entry name</em> &rarr;
+   *          <em>{@link File}
+   *          instance</em>.
+   */
+  protected void subClassProcessHook(final Map<String, File> filesToPackage) {
+    // nothing to implement here.
   }
   
   private File getSourcesDirectory() throws NoSourcesToIncludeException {
@@ -136,13 +199,13 @@ public class Jar implements Action {
   /**
    * Setting the defaults just before starting to process the action itself.
    */
-  private void setDefaults() {
+  protected void setDefaults() {
     if (fromCompilation == null && fromPath == null) {
       fromCompilation = new Compilation();
     }
     
     if (manifestPath == null) {
-      manifestPath = DefaultValues.MANIFEST_PATH;
+      manifestPath = DefaultValues.JAR_MANIFEST_PATH;
     }
     
     // no sources added by default
@@ -225,25 +288,20 @@ public class Jar implements Action {
    * See <a href="http://stackoverflow.com/questions/1281229/how-to-use-jaroutputstream-to-create-a-jar-file"
    * >Stack Overflow</a> for explanation on method.
    * 
+   * @param baseDir
    * @param source
    *          The {@link File} to add to the Jar.
-   * @param classFile
+   * @param archiveDestinationPrefix
    * @param target
    *          The Jar's {@link JarOutputStream}.
    * @throws IOException
    */
-  private static void add(final File baseDir, final File source,
+  protected static void add(final String entryName, final File source,
       final JarOutputStream target) throws IOException {
-    final String baseDirPath = baseDir.getPath();
     
-    // strip the base dir from the entry name.
-    String name = source.getPath().replace(baseDirPath, "");
-    // ZIPs require forward slashes.
-    name = name.replace("\\", "/").substring(1);
+    Log.finer("Compressing " + entryName);
     
-    Log.finer("Adding " + name);
-    
-    final JarEntry entry = new JarEntry(name);
+    final JarEntry entry = new JarEntry(entryName);
     entry.setTime(source.lastModified());
     target.putNextEntry(entry);
     

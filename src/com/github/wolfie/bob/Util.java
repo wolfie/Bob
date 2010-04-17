@@ -2,10 +2,9 @@ package com.github.wolfie.bob;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.github.wolfie.bob.exception.BobRuntimeException;
@@ -15,6 +14,13 @@ public class Util {
   public interface FilePredicate {
     boolean accept(File file);
   }
+  
+  public static FilePredicate HIDE_DOT_FILES = new FilePredicate() {
+    @Override
+    public boolean accept(final File file) {
+      return !file.getName().startsWith(".");
+    }
+  };
   
   public static final FilePredicate JAVA_SOURCE_FILE = new FilePredicate() {
     @Override
@@ -96,32 +102,51 @@ public class Util {
     for (final File file : baseDir.listFiles()) {
       if (file.isDirectory()) {
         files.addAll(getFilesRecursively(file, predicate));
-      } else if (predicate.accept(file)) {
-        files.add(file);
+      } else if (predicate == null || predicate.accept(file)) {
+        
+        if (HIDE_DOT_FILES.accept(file)) {
+          files.add(file);
+        }
       }
     }
     
     return files;
   }
   
-  public static Collection<File> normalizeFilePaths(final File basePath,
-      final Collection<File> files) {
-    final List<File> result = new ArrayList<File>(files.size());
-    final String basePathName = basePath.getPath();
+  public static Collection<File> getFilesRecursively(final File baseDir) {
+    return getFilesRecursively(baseDir, null);
+  }
+  
+  // public static Collection<File> normalizeFilePaths(final File basePath,
+  // final Collection<File> files) {
+  // final List<File> result = new ArrayList<File>(files.size());
+  // final String basePathName = basePath.getPath();
+  //    
+  // for (final File file : files) {
+  // if (file.getPath().startsWith(basePathName)) {
+  // String filename = file.getPath().replace(basePathName, "");
+  // if (filename.startsWith("/")) {
+  // filename = filename.substring(1);
+  // }
+  // result.add(new File(basePath, filename));
+  // } else {
+  // result.add(file);
+  // }
+  // }
+  //    
+  // return result;
+  // }
+  
+  public static String relativeFileName(final File baseDir, final File file) {
+    final String basePath = baseDir.getAbsolutePath();
+    final String filePath = file.getAbsolutePath();
     
-    for (final File file : files) {
-      if (file.getPath().startsWith(basePathName)) {
-        String filename = file.getPath().replace(basePathName, "");
-        if (filename.startsWith("/")) {
-          filename = filename.substring(1);
-        }
-        result.add(new File(basePath, filename));
-      } else {
-        result.add(file);
-      }
+    if (baseDir.isDirectory() && file.isFile() && filePath.startsWith(basePath)) {
+      // +1 to rid of starting '/'
+      return filePath.substring(basePath.length() + 1);
+    } else {
+      return filePath.substring(1);
     }
-    
-    return result;
   }
   
   /**
@@ -192,6 +217,25 @@ public class Util {
     } else {
       Log.info("Not removing " + file.getAbsolutePath()
           + " since it does not exist.");
+    }
+  }
+  
+  /**
+   * Puts a value with a key into a map if the key is previously unset.
+   * 
+   * @param key
+   * @param value
+   * @param map
+   * @return <code>true</code> if the item was successfully put, otherwise
+   *         <code>false</code>
+   */
+  public static <K, V extends Object> boolean putIfNotExists(final K key,
+      final V value, final Map<K, V> map) {
+    if (!map.containsKey(key)) {
+      map.put(key, value);
+      return true;
+    } else {
+      return false;
     }
   }
 }
