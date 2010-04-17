@@ -43,7 +43,7 @@ public class Bob {
   public static final String VERSION_BUILD = "pre-alpha";
   public static final String VERSION;
   
-  private static final String DEFAULT_BUILD_SRC_DIR = "build";
+  private static final String DEFAULT_BUILD_SRC_DIR = "bob";
   private static final String DEFAULT_BUILD_SRC_FILE = "Default.java";
   private static final String DEFAULT_BUILD_METHOD_NAME = "build";
   
