@@ -8,6 +8,35 @@ import com.github.wolfie.bob.DefaultValues;
 import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 
+/**
+ * <p>
+ * Package the project into a WAR file.
+ * </p>
+ * 
+ * <h1>Assumptions</h1>
+ * <ul>
+ * <li>Web content must include the <tt>META-INF</tt> and <tt>WEB-INF</tt>
+ * directories, in addition to all other web resources.</li>
+ * <li>All JARs used during compilation will be added to the WAR's libraries.</li>
+ * </ul>
+ * 
+ * <h1>Conventions</h1>
+ * 
+ * <ul>
+ * <li>The classes are compiled from a default instance of {@link Compilation}</li>
+ * <li>The compilation will search <tt>WebContent/WEB-INF/lib</tt> for JARs.</li>
+ * <li>The resulting file is <tt>artifacts/build.war</tt></li>
+ * <li>Sources are not included</li>
+ * <li>All web content is taken from <tt>WebContent</tt></li>
+ * <li>Manifest file is taken from <tt>WebContent/META-INF/MANIFEST.MF</tt>, if
+ * exists</li>
+ * <li><tt>web.xml</tt> is taken from <tt>WebContent/WEB-INF/web.xml</tt>, if
+ * exists</li>
+ * </ul>
+ * 
+ * @author Henrik Paul
+ * @since 1.0.0
+ */
 public class War extends Jar {
   
   private static final String WEB_XML_PATH = "WEB-INF/web.xml";
@@ -75,12 +104,26 @@ public class War extends Jar {
     return Util.getFilesRecursively(new File(webContentPath));
   }
   
+  /**
+   * Explicitly define which file to use as the <tt>web.xml</tt> file.
+   * 
+   * @param path
+   *          A file path.
+   * @return <code>this</code>
+   */
   public War withWebXmlFrom(final String path) {
     Util.checkNulls(path);
     webXmlPath = path;
     return this;
   }
   
+  /**
+   * Define the path where the web content will be found at.
+   * 
+   * @param path
+   *          A directory path.
+   * @return <code>this</code>
+   */
   public War withWebContentFrom(final String path) {
     Util.checkNulls(path);
     webContentPath = path;

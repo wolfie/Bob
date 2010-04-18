@@ -29,14 +29,22 @@ import com.sun.tools.internal.ws.processor.ProcessorException;
 
 /**
  * <p>
- * Compile and package the project into a JAR file.
+ * Package the project into a JAR file.
  * </p>
  * 
+ * <h1>Assumptions</h1>
  * <p>
- * <em>Defaults will be used as follows:</em> Manifest file will be taken from
- * <tt>META-INF/MANIFEST.MF</tt> and a default library location of <tt>lib/</tt>
- * will be used.
+ * <i>There are no assumptions.</i>
  * </p>
+ * 
+ * <h1>Conventions</h1>
+ * 
+ * <ul>
+ * <li>The classes are compiled from a default instance of {@link Compilation}</li>
+ * <li>The resulting file is <tt>artifacts/build.jar</tt></li>
+ * <li>Sources are not included</li>
+ * <li>Manifest file is taken from <tt>META-INF/MANIFEST.MF</tt>, if exists</li>
+ * </ul>
  * 
  * @author Henrik Paul
  * @since 1.0.0
@@ -358,11 +366,25 @@ public class Jar implements Action {
     }
   }
   
+  /**
+   * The path of the resulting jar file
+   * 
+   * @param path
+   *          a file path
+   * @return <code>this</code>
+   */
   public Jar to(final String path) {
     toPath = path;
     return this;
   }
   
+  /**
+   * Use a manifest file from an explicit path.
+   * 
+   * @param path
+   *          the file path to the manifest file.
+   * @return <code>this</code>
+   */
   public Jar withManifestFrom(final String path) {
     manifestPath = path;
     return this;

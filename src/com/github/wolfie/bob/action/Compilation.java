@@ -23,6 +23,34 @@ import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.CompilationFailedException;
 
+/**
+ * <p>
+ * Compile a project's source tree
+ * </p>
+ * 
+ * <h1>Assumptions</h1>
+ * 
+ * <ul>
+ * <li>Your project consists of only one source tree</li>
+ * <li>Your source files have the <tt>.java</tt> prefix</li>
+ * <li>The compiled classfiles have the package names as the directory structure
+ * (e.g. clases in <tt>com.example.myapp</tt> is placed under
+ * <tt>$DESTINATION_DIR/com/example/myapp</tt></li>
+ * </ul>
+ * 
+ * <h1>Conventions</h1>
+ * 
+ * <ul>
+ * <li>Sources are compiled with debug information</tt>
+ * <li>The sources are taken from the directory <tt>src</tt></li>
+ * <li>The compiled classfiles are placed directly under <tt>artifacts</tt>
+ * directory</li>
+ * <li>JAR-files for compilation classpath are taken from <tt>lib</tt></li>
+ * </ul>
+ * 
+ * @author Henrik Paul
+ * @since 1.0.0
+ */
 public class Compilation implements Action {
   
   private static class BobDiagnosticListener implements
@@ -205,22 +233,61 @@ public class Compilation implements Action {
     return Collections.unmodifiableSet(usedJars);
   }
   
-  public Compilation sourcesFrom(final String sourcePath) {
-    this.sourcePath = sourcePath;
+  /**
+   * <p>
+   * Set the source path that contains source files to compile.
+   * </p>
+   * 
+   * <p>
+   * All files will be compiled, recursively.
+   * </p>
+   * 
+   * @param path
+   *          The root source directory
+   * @return <tt>this</tt>
+   */
+  public Compilation sourcesFrom(final String path) {
+    sourcePath = path;
     return this;
   }
   
+  /**
+   * <p>
+   * Set the destination directory where the compiled classes will be placed.
+   * </p>
+   * 
+   * <p>
+   * If the given directory exists, it will be cleared. If the given directory
+   * doesn't exist, it will be created.
+   * </p>
+   * 
+   * @param destinationPath
+   *          a directory path.
+   * @return <t>this</t>
+   */
   public Compilation to(final String destinationPath) {
     this.destinationPath = destinationPath;
     return this;
   }
   
-  public Compilation useJarsAt(final String jarsAt) {
-    Util.checkNulls(jarsAt);
-    jarPaths.add(jarsAt);
+  /**
+   * Add a path where JAR files exist for the compilation.
+   * 
+   * @param path
+   *          the path to jars, relative to project root.
+   * @return <tt>this</tt>
+   */
+  public Compilation useJarsAt(final String path) {
+    Util.checkNulls(path);
+    jarPaths.add(path);
     return this;
   }
   
+  /**
+   * Compile the sources without debug information.
+   * 
+   * @return <tt>this</tt>
+   */
   public Compilation disableDebug() {
     disableDebug = true;
     return this;
