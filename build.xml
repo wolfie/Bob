@@ -26,7 +26,7 @@
 	
 	<target name="jar" depends="compile">
 		<jar 
-			destfile="bob.jar" 
+			destfile="bin/bob.jar" 
 			basedir="${tempDir}" 
 			manifest="${manifest.mf}"
 		/>
