@@ -2,10 +2,14 @@ package com.github.wolfie.bob;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.github.wolfie.bob.exception.BobRuntimeException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
@@ -36,10 +40,8 @@ public class Util {
     }
   };
   
-  public static String implode(String glue, final Object... bits) {
-    if (glue == null) {
-      glue = "";
-    }
+  public static String implode(final String glue, final Object... bits) {
+    checkNulls(glue, bits);
     
     final StringBuilder builder = new StringBuilder();
     for (final Object bit : bits) {
@@ -121,7 +123,7 @@ public class Util {
   // final Collection<File> files) {
   // final List<File> result = new ArrayList<File>(files.size());
   // final String basePathName = basePath.getPath();
-  //    
+  //
   // for (final File file : files) {
   // if (file.getPath().startsWith(basePathName)) {
   // String filename = file.getPath().replace(basePathName, "");
@@ -133,7 +135,7 @@ public class Util {
   // result.add(file);
   // }
   // }
-  //    
+  //
   // return result;
   // }
   
@@ -237,5 +239,43 @@ public class Util {
     } else {
       return false;
     }
+  }
+  
+  public static String wordWrap(final String string) {
+    return wordWrap(string, 70);
+  }
+  
+  public static String wordWrap(final String string, final int lineLength) {
+    final String linePrefix;
+    
+    final Pattern pattern = Pattern.compile("(\\s*).*");
+    final Matcher matcher = pattern.matcher(string);
+    if (matcher.matches() && matcher.groupCount() == 1) {
+      linePrefix = matcher.group(1);
+    } else {
+      linePrefix = "";
+    }
+    
+    final List<String> lines = new ArrayList<String>();
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append(linePrefix);
+    
+    for (final String word : string.trim().split("\\s")) {
+      stringBuilder.append(word);
+      
+      if (stringBuilder.length() + word.length() > lineLength) {
+        lines.add(stringBuilder.toString());
+        stringBuilder = new StringBuilder();
+        stringBuilder.append(linePrefix);
+      }
+      
+    }
+    
+    final String lastString = stringBuilder.toString().trim();
+    if (!lastString.isEmpty()) {
+      lines.add(lastString);
+    }
+    
+    return implode("\n", lines);
   }
 }
