@@ -256,6 +256,8 @@ public class Util {
       linePrefix = "";
     }
     
+    // highly unoptimized
+    
     final List<String> lines = new ArrayList<String>();
     StringBuilder stringBuilder = new StringBuilder();
     stringBuilder.append(linePrefix);
@@ -268,12 +270,16 @@ public class Util {
         stringBuilder = new StringBuilder();
         stringBuilder.append(linePrefix);
       }
+
+      else {
+        stringBuilder.append(" ");
+      }
       
     }
     
     final String lastString = stringBuilder.toString().trim();
     if (!lastString.isEmpty()) {
-      lines.add(lastString);
+      lines.add(linePrefix + lastString);
     }
     
     return implode("\n", lines);

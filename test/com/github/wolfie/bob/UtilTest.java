@@ -152,4 +152,10 @@ public class UtilTest {
     final String actual = Util.wordWrap("foo bar baz", 2);
     assertEquals("foo\nbar\nbaz", actual);
   }
+  
+  @Test
+  public void testWordWrapStringIntWithLongerLineThanWords() {
+    final String actual = Util.wordWrap("foo bar baz", 7);
+    assertEquals("foo bar\nbaz", actual);
+  }
 }
