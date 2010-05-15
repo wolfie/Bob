@@ -1,6 +1,16 @@
 package com.github.wolfie.bob;
 
+import java.io.File;
+
 public final class DefaultValues {
+  
+  // bob core
+  
+  public static final String DEFAULT_BUILD_SRC_DIR = "bob";
+  public static final String DEFAULT_BUILD_SRC_FILE = "Default.java";
+  public static final String DEFAULT_BUILD_METHOD_NAME = "build";
+  public static final String DEFAULT_BUILD_SRC_PATH = DEFAULT_BUILD_SRC_DIR
+      + File.separator + DEFAULT_BUILD_SRC_FILE;
   
   public static final String ARTIFACTS_PATH = "artifacts";
   

@@ -1,6 +1,7 @@
 package com.github.wolfie.bob;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -157,5 +158,50 @@ public class UtilTest {
   public void testWordWrapStringIntWithLongerLineThanWords() {
     final String actual = Util.wordWrap("foo bar baz", 7);
     assertEquals("foo bar\nbaz", actual);
+  }
+  
+  @Test(expected = NullPointerException.class)
+  public void testIsAnyOfNulls() {
+    Util.isAnyOf(null, (String) null);
+  }
+  
+  @Test(expected = NullPointerException.class)
+  public void testIsAnyOfNullNoHaystack() {
+    assertFalse(Util.isAnyOf(null));
+  }
+  
+  @Test(expected = NullPointerException.class)
+  public void testIsAnyOfNullHaystack() {
+    assertTrue(Util.isAnyOf("foo", (String) null));
+  }
+  
+  @Test
+  public void testIsAnyOfNoHaystack() {
+    assertFalse(Util.isAnyOf("foo"));
+  }
+  
+  @Test(expected = NullPointerException.class)
+  public void testIsAnyOfNullWithHaystack() {
+    assertFalse(Util.isAnyOf(null, "bar"));
+  }
+  
+  @Test
+  public void testIsAnyOfNoMatchingNeedle() {
+    assertFalse(Util.isAnyOf("foo", "bar"));
+  }
+  
+  @Test
+  public void testIsAnyOfMatchingNeedle() {
+    assertTrue(Util.isAnyOf("bar", "bar"));
+  }
+  
+  @Test
+  public void testIsAnyOfMatchingNeedleMultipleHaystack() {
+    assertTrue(Util.isAnyOf("bar", "bar", "baz"));
+  }
+  
+  @Test
+  public void testIsAnyOfNotMatchingNeedleMultipleHaystack() {
+    assertFalse(Util.isAnyOf("foo", "bar", "baz"));
   }
 }

@@ -2,6 +2,7 @@ package com.github.wolfie.bob;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -11,7 +12,9 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
+import com.github.wolfie.bob.exception.BuildTargetException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 
 public class Util {
@@ -283,5 +286,49 @@ public class Util {
     }
     
     return implode("\n", lines);
+  }
+  
+  public static boolean isAnyOf(final String needle, final String... haystack) {
+    
+    checkNulls(needle, haystack);
+    
+    for (final String option : haystack) {
+      if (option.equals(needle)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * <p>
+   * Verifies that a given method fulfills all the requirements of a valid build
+   * target
+   * </p>
+   * 
+   * <p>
+   * The method must
+   * </p>
+   * <ul>
+   * <li>be public</li>
+   * <li>be annotated with {@link com.github.wolfie.bob.annotation.Target}</li>
+   * <li>not accept any parameters</li>
+   * <li>return {@link com.github.wolfie.bob.action.Action} or its subclass</li>
+   * </ul>
+   * 
+   * @param method
+   *          The method to check
+   * @return <tt>method</tt>
+   * @throws BuildTargetException
+   *           if any of the requirements are not met, with a description of the
+   *           problem in the message.
+   */
+  public static Method verifyBuildTargetMethod(final Method method) {
+    if (method.getAnnotation(Target.class) == null) {
+      throw new BuildTargetException("Method " + method + " is not ");
+    }
+    
+    return method;
   }
 }

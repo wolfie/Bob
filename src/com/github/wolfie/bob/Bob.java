@@ -9,7 +9,9 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.logging.Level;
 
 import javax.tools.Diagnostic;
@@ -22,12 +24,14 @@ import javax.tools.ToolProvider;
 
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
+import com.github.wolfie.bob.exception.BuildTargetException;
 import com.github.wolfie.bob.exception.CompilationFailedException;
 import com.github.wolfie.bob.exception.IncompatibleReturnTypeException;
-import com.github.wolfie.bob.exception.NoBuildDirectoryFoundException;
 import com.github.wolfie.bob.exception.NoBuildFileFoundException;
-import com.github.wolfie.bob.exception.NoBuildTargetMethodFoundException;
+import com.github.wolfie.bob.exception.NoDefaultBuildTargetMethodFoundException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
+import com.github.wolfie.bob.exception.TargetIsNotAnnotatedException;
+import com.github.wolfie.bob.exception.UnexpectedArgumentAmountException;
 import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
 
 /**
@@ -43,16 +47,22 @@ public class Bob {
   public static final String VERSION_BUILD = "pre-alpha";
   public static final String VERSION;
   
-  private static final String DEFAULT_BUILD_SRC_DIR = "bob";
-  private static final String DEFAULT_BUILD_SRC_FILE = "Default.java";
-  private static final String DEFAULT_BUILD_METHOD_NAME = "build";
-  
-  private final String sourceDirectory = DEFAULT_BUILD_SRC_DIR;
-  private final String sourceFile = DEFAULT_BUILD_SRC_FILE;
-  
   private static boolean showHelp = false;
   private static boolean skipBuilding = false;
   private static boolean success = false;
+  private static boolean listTargets = false;
+  
+  /**
+   * A path to the desired build file. Guaranteed to have a non-
+   * <code>null</code> value
+   */
+  private static String buildfile;
+  
+  /**
+   * The name of the desired build method. Can be <code>null</code>, which means
+   * a suitable default target needs to be found manually.
+   */
+  private static String buildtarget = null;
   
   static {
     if (VERSION_BUILD != null && !VERSION_BUILD.isEmpty()) {
@@ -69,17 +79,23 @@ public class Bob {
       handleArgs(args);
       
       if (!skipBuilding) {
-        new Bob().run();
+        run();
       }
       
       if (showHelp) {
         showHelp();
       }
       
-    } catch (final NoBuildDirectoryFoundException e) {
+      if (listTargets) {
+        listTargets();
+      }
+      
+    } catch (final NoBuildFileFoundException e) {
       Log.severe(e.getMessage());
       Log.severe("Are you sure you're in the right directory?");
     } catch (final UnrecognizedArgumentException e) {
+      Log.severe(e.getMessage());
+    } catch (final UnexpectedArgumentAmountException e) {
       Log.severe(e.getMessage());
     } catch (final Exception e) {
       // catch-all last resort
@@ -97,9 +113,9 @@ public class Bob {
     }
   }
   
-  private final void run() {
+  private static final void run() {
     try {
-      final File buildFile = getBuildFile(getBuildDirectory());
+      final File buildFile = getBuildFile();
       final File buildClassFile = compile(buildFile);
       
       ClassLoader.getSystemClassLoader();
@@ -183,7 +199,7 @@ public class Bob {
    * @param buildClass
    *          The {@link Class} in which to look for said methods
    * @return The build {@link Method}.
-   * @throws NoBuildTargetMethodFoundException
+   * @throws NoDefaultBuildTargetMethodFoundException
    *           If no suitable build method is found in <tt>buildClass</tt>.
    * @throws SeveralDefaultBuildTargetMethodsFoundException
    *           If <tt>buildClass</tt> has more than one method annotated as a
@@ -193,13 +209,41 @@ public class Bob {
    *           something other than an implementation of {@link Action}.
    */
   private static Method getBuildMethod(final Class<?> buildClass)
-      throws NoBuildTargetMethodFoundException,
+      throws NoDefaultBuildTargetMethodFoundException,
       SeveralDefaultBuildTargetMethodsFoundException {
     
-    // TODO: make command-line target specification possible.
+    final Method method;
+    if (buildtarget != null) {
+      method = getBuildTarget(buildClass, buildtarget);
+    } else {
+      method = getDefaultBuildTarget(buildClass);
+    }
     
-    Method defaultAnnotatedMethod = null;
-    Method defaultNameMethod = null;
+    // sanity check of return type.
+    if (!Action.class.isAssignableFrom(method.getReturnType())) {
+      throw new IncompatibleReturnTypeException(method);
+    } else if (!method.isAnnotationPresent(Target.class)) {
+      throw new TargetIsNotAnnotatedException(method);
+    } else {
+      return method;
+    }
+  }
+  
+  private static Method getBuildTarget(final Class<?> buildClass,
+      final String buildtarget) {
+    try {
+      return buildClass.getMethod(buildtarget);
+    } catch (final SecurityException e) {
+      throw new BuildTargetException("The JVM didn't allow access to target "
+          + buildtarget + ".", e);
+    } catch (final NoSuchMethodException e) {
+      throw new BuildTargetException("No target by the name " + buildtarget
+          + " was found", e);
+    }
+  }
+  
+  private static Method getDefaultBuildTarget(final Class<?> buildClass) {
+    Method buildMethod = null;
     
     for (final Method method : buildClass.getMethods()) {
       
@@ -207,39 +251,26 @@ public class Bob {
       if (targetAnnotation != null) {
         if (targetAnnotation.defaultTarget()) {
           
-          if (defaultAnnotatedMethod == null) {
-            defaultAnnotatedMethod = method;
+          if (buildMethod == null) {
+            buildMethod = method;
           } else {
             throw new SeveralDefaultBuildTargetMethodsFoundException(buildClass);
           }
-          
-        } else if (method.getName().equals(DEFAULT_BUILD_METHOD_NAME)) {
-          defaultNameMethod = method;
         }
         
-        // sanity check of return type.
-        if (!Action.class.isAssignableFrom(method.getReturnType())) {
-          throw new IncompatibleReturnTypeException(method);
-        }
       }
     }
     
-    final Method chosenMethod;
-    
-    if (defaultAnnotatedMethod != null) {
-      chosenMethod = defaultAnnotatedMethod;
-    } else if (defaultNameMethod != null) {
-      chosenMethod = defaultNameMethod;
+    if (buildMethod != null) {
+      return buildMethod;
     } else {
-      throw new NoBuildTargetMethodFoundException(buildClass);
+      throw new NoDefaultBuildTargetMethodFoundException(buildClass);
     }
-    
-    return chosenMethod;
   }
   
   private static String getBuildClassName() {
-    // FIXME: take arguments into account.
-    return "Default";
+    return buildfile.substring(buildfile.lastIndexOf(File.separator) + 1,
+        buildfile.lastIndexOf("."));
   }
   
   private static File compile(final File buildFile)
@@ -283,97 +314,88 @@ public class Bob {
     
   }
   
-  /**
-   * <p>
-   * Search for the source file for the build class in a directory.
-   * </p>
-   * 
-   * @param buildDirectory
-   *          A {@link File} object representing the directory in which a build
-   *          file should be found at.
-   * @return The build source file as a {@link File}
-   * @throws NoBuildFileFoundException
-   *           if no build file was found directly under <tt>buildDirectory</tt>
-   *           , or <tt>buildDirectory</tt> is not a directory.
-   */
-  private File getBuildFile(final File buildDirectory)
-      throws NoBuildFileFoundException {
-    if (buildDirectory != null && buildDirectory.isDirectory()) {
-      final List<File> files = Arrays.asList(buildDirectory.listFiles());
-      for (final File file : files) {
-        if (file.getName().equals(sourceFile)) {
-          return file;
-        }
-      }
+  private static File getBuildFile() throws NoBuildFileFoundException {
+    final File file = new File(buildfile);
+    if (file.canRead()) {
+      return file;
+    } else {
+      throw new NoBuildFileFoundException(buildfile);
     }
-    
-    throw new NoBuildFileFoundException(buildDirectory);
-  }
-  
-  /**
-   * Search for the directory in which the build file should be located.
-   * 
-   * @return The directory in which the build file should be as a {@link File}.
-   * @throws NoBuildDirectoryFoundException
-   *           When no build directory was found.
-   */
-  private File getBuildDirectory() throws NoBuildDirectoryFoundException {
-    final File buildSrcDir = new File(sourceDirectory);
-    if (buildSrcDir.isDirectory()) {
-      return buildSrcDir;
-    }
-    
-    throw new NoBuildDirectoryFoundException();
   }
   
   private static void handleArgs(final String[] args) {
-    for (final String arg : args) {
+    final Queue<String> argQueue = new LinkedList<String>(Arrays.asList(args));
+    
+    while (!argQueue.isEmpty()) {
+      final String arg;
+      if (argQueue.peek().startsWith("-")) {
+        arg = argQueue.remove();
+      } else {
+        break;
+      }
       
       // LOGGING
       
-      if (isAnyOf(arg, "-v", "--verbose")) {
+      if (Util.isAnyOf(arg, "-v", "--verbose")) {
         Log.setLevel(Level.FINE);
         Log.fine("Verbose logging on");
       }
 
-      else if (isAnyOf(arg, "-vv", "--very-verbose")) {
+      else if (Util.isAnyOf(arg, "-vv", "--very-verbose")) {
         Log.setLevel(Level.FINER);
         Log.finer("Very verbose logging on");
       }
 
-      else if (isAnyOf(arg, "-s", "--silent")) {
+      else if (Util.isAnyOf(arg, "-s", "--silent")) {
         Log.setLevel(Level.WARNING);
       }
 
-      else if (isAnyOf(arg, "-ss", "--very-silent")) {
+      else if (Util.isAnyOf(arg, "-ss", "--very-silent")) {
         Log.setLevel(Level.SEVERE);
+      }
+
+      else if (Util.isAnyOf(arg, "-l", "--list-targets")) {
+        skipBuilding = true;
+        listTargets = true;
       }
 
       // END LOGGING
       
-      else if (isAnyOf(arg, "-h", "--help")) {
+      else if (Util.isAnyOf(arg, "-h", "--help")) {
         showHelp = true;
         skipBuilding = true;
       }
 
       else {
+        showHelp = true;
+        skipBuilding = true;
         throw new UnrecognizedArgumentException(arg);
       }
     }
-  }
-  
-  private static boolean isAnyOf(final String arg, final String... options) {
-    for (final String option : options) {
-      if (option.equals(arg)) {
-        return true;
-      }
+    
+    if (!argQueue.isEmpty()) {
+      buildfile = argQueue.remove();
+      Log.fine("Using " + buildfile + " as the buildfile");
+    } else {
+      buildfile = DefaultValues.DEFAULT_BUILD_SRC_PATH;
+      Log.finer("Using the default " + buildfile + " as the buildfile");
     }
     
-    return false;
+    if (!argQueue.isEmpty()) {
+      buildtarget = argQueue.remove();
+      Log.fine("Using \"" + buildtarget + "\" as the build target");
+    }
+    // else {} is handled at #getBuildMethod()
+    
+    if (!argQueue.isEmpty()) {
+      showHelp = true;
+      skipBuilding = true;
+      throw new UnexpectedArgumentAmountException(argQueue.size(), 2);
+    }
   }
   
   private static void showHelp() {
-    System.out.println("Usage: bob [options]");
+    System.out.println("Usage: bob [<options>] [<buildfile>] [<buildtarget>]");
     System.out.println();
     System.out.println("Options:");
     System.out.println(" -v, --verbose          show additional build info");
@@ -381,6 +403,28 @@ public class Bob {
     System.out.println(" -s, --silent           suppress build info");
     System.out.println(" -ss, --more-silent     suppress almost all info");
     System.out.println(" -h, --help             show this help");
+    System.out.println();
+    System.out.println(" -l, --list-targets     ");
+    System.out.println(Util.wordWrap("        list targets in a buildfile. " +
+                    "Any defined buildtarget will be ignored."));
+    System.out.println();
+    System.out.println("Buildfile:");
+    System.out.println(Util.wordWrap("  The buildfile is where all "
+        + "the build targets are located at. If this parameter "
+        + "is omitted, a default value of \""
+        + DefaultValues.DEFAULT_BUILD_SRC_DIR + File.separator
+        + DefaultValues.DEFAULT_BUILD_SRC_FILE + "\" will " + "be used."));
+    System.out.println();
+    System.out.println("Buildtarget:");
+    System.out.println(Util.wordWrap("  The buildtarget " + "is the method "
+        + "within buildfile that will be invoked to create whatever "
+        + "you wish to be created. If this parameter is "
+        + "omitted, a default value of \""
+        + DefaultValues.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
+  }
+  
+  private static void listTargets() {
+    // TODO incomplete.
   }
   
   public static String getVersionString() {
