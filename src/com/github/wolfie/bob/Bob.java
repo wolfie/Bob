@@ -30,7 +30,6 @@ import com.github.wolfie.bob.exception.IncompatibleReturnTypeException;
 import com.github.wolfie.bob.exception.NoBuildFileFoundException;
 import com.github.wolfie.bob.exception.NoDefaultBuildTargetMethodFoundException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
-import com.github.wolfie.bob.exception.TargetIsNotAnnotatedException;
 import com.github.wolfie.bob.exception.UnexpectedArgumentAmountException;
 import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
 
@@ -218,14 +217,7 @@ public class Bob {
       method = getDefaultBuildTarget(buildClass);
     }
     
-    // sanity check of return type.
-    if (!Action.class.isAssignableFrom(method.getReturnType())) {
-      throw new IncompatibleReturnTypeException(method);
-    } else if (!method.isAnnotationPresent(Target.class)) {
-      throw new TargetIsNotAnnotatedException(method);
-    } else {
-      return method;
-    }
+    return Util.verifyBuildTargetMethod(method);
   }
   
   private static Method getBuildTarget(final Class<?> buildClass,
@@ -422,8 +414,32 @@ public class Bob {
         + DefaultValues.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
   }
   
-  private static void listTargets() {
-    // TODO incomplete.
+  private static void listTargets() throws MalformedURLException,
+      ClassNotFoundException {
+    final File buildFile = getBuildFile();
+    final File buildClassFile = compile(buildFile);
+    final URLClassLoader urlClassLoader = new URLClassLoader(
+        new URL[] { buildClassFile.toURI().toURL() });
+    final Class<?> buildClass = urlClassLoader.loadClass(getBuildClassName());
+    
+    System.out.println("Valid build targets found in build file "
+        + buildFile.getAbsolutePath() + ": \n");
+    
+    final Method defaultTarget = getDefaultBuildTarget(buildClass);
+    
+    for (final Method method : buildClass.getMethods()) {
+      try {
+        Util.verifyBuildTargetMethod(method);
+        
+        if (defaultTarget.equals(method)) {
+          System.out.println(method.getName() + " [default]");
+        } else {
+          System.out.println(method.getName());
+        }
+      } catch (final BuildTargetException e) {
+        // just ignore...
+      }
+    }
   }
   
   public static String getVersionString() {

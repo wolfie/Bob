@@ -3,6 +3,7 @@ package com.github.wolfie.bob;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 import com.github.wolfie.bob.exception.BuildTargetException;
@@ -325,8 +327,18 @@ public class Util {
    *           problem in the message.
    */
   public static Method verifyBuildTargetMethod(final Method method) {
-    if (method.getAnnotation(Target.class) == null) {
-      throw new BuildTargetException("Method " + method + " is not ");
+    if (!Modifier.isPublic(method.getModifiers())) {
+      throw new BuildTargetException("Method " + method + " is not public.");
+    } else if (!method.isAnnotationPresent(Target.class)) {
+      throw new BuildTargetException("Method " + method
+          + " is not annotated with @" + Target.class.getName() + ".");
+    } else if (method.getParameterTypes().length != 0) {
+      throw new BuildTargetException("Method " + method
+          + " accepts parameters, which it may not do.");
+    } else if (!Action.class.isAssignableFrom(method.getReturnType())) {
+      throw new BuildTargetException("Method " + method
+          + " does not return an instance of " + Action.class.getName()
+          + " or one of its subclasses.");
     }
     
     return method;
