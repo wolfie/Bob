@@ -118,7 +118,6 @@ public class Bob {
       final File buildFile = getBuildFile();
       final File buildClassFile = compile(buildFile);
       
-      ClassLoader.getSystemClassLoader();
       final URLClassLoader urlClassLoader = new URLClassLoader(
           new URL[] { buildClassFile.toURI().toURL() });
       final Class<?> buildClass = urlClassLoader.loadClass(getBuildClassName());
