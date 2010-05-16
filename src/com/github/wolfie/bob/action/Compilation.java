@@ -263,7 +263,7 @@ public class Compilation implements Action {
    * 
    * @param destinationPath
    *          a directory path.
-   * @return <t>this</t>
+   * @return <tt>this</tt>
    */
   public Compilation to(final String destinationPath) {
     this.destinationPath = destinationPath;
