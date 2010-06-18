@@ -13,4 +13,13 @@ public class ProcessingException extends BobRuntimeException {
   public ProcessingException(final Throwable e) {
     super(e);
   }
+  
+  public ProcessingException(final String msg) {
+    super(msg);
+  }
+  
+  public ProcessingException(final String message, final Throwable cause) {
+    super(message, cause);
+    // TODO Auto-generated constructor stub
+  }
 }

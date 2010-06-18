@@ -17,7 +17,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 import com.github.wolfie.bob.Bob;
-import com.github.wolfie.bob.DefaultValues;
+import com.github.wolfie.bob.Defaults;
 import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
@@ -196,6 +196,7 @@ public class Jar implements Action {
   private File getManifestFile() throws NoManifestFileFoundException {
     final File manifestFile = new File(manifestPath);
     if (manifestFile.exists() && manifestFile.canRead()) {
+      Log.finer("Using manifest file from " + manifestFile.getAbsolutePath());
       return manifestFile;
     } else {
       Log.info("Could not include manifest from file "
@@ -213,13 +214,13 @@ public class Jar implements Action {
     }
     
     if (manifestPath == null) {
-      manifestPath = DefaultValues.JAR_MANIFEST_PATH;
+      manifestPath = Defaults.JAR_MANIFEST_PATH;
     }
     
     // no sources added by default
     
     if (toPath == null) {
-      toPath = DefaultValues.JAR_PATH;
+      toPath = Defaults.JAR_PATH;
     }
   }
   

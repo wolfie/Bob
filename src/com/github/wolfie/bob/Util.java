@@ -53,8 +53,10 @@ public class Util {
       builder.append(bit.toString()).append(glue);
     }
     
-    // remove the last bit
-    builder.delete(builder.length() - glue.length(), builder.length());
+    if (bits.length > 0) {
+      // remove the last bit
+      builder.delete(builder.length() - glue.length(), builder.length());
+    }
     
     return builder.toString();
   }
@@ -342,5 +344,9 @@ public class Util {
     }
     
     return method;
+  }
+  
+  public static boolean systemIsWindows() {
+    return System.getProperty("os.name").startsWith("Windows");
   }
 }

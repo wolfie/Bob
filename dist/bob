@@ -41,7 +41,10 @@ if [ -z "$BOB_HOME" -o ! -d "$BOB_HOME" ] ; then
   BOB_HOME=`cd "$BOB_HOME" > /dev/null && pwd`
 fi
 
+if [ -z "$BOB_LIB" -o ! -d "$BOB_LIB" ] ; then
+  BOB_LIB="$BOB_HOME/lib"
+fi
 
 bob_command="exec \"$JAVACMD\""
 
-eval $bob_command -jar $BOB_HOME/bob.jar "$bob_args"
+eval BOB_LIB="$BOB_LIB" $bob_command -jar $BOB_LIB/bob.jar "$bob_args"

@@ -8,6 +8,7 @@
 <project name="Bob" default="jar" basedir=".">
 	<property name="tempDir" value="/tmp/bobbuild"/>
 	<property name="srcDir" value="src"/>
+	<property name="testDir" value="test"/>
 	<property name="manifest.mf" value="META-INF/MANIFEST.MF"/>
 	
 
@@ -15,31 +16,55 @@
 		<delete dir="${tempDir}"/>
 	</target>
 	
-	<target name="compile" depends="clean">
+	<target name="compile-project" depends="clean">
 		<mkdir dir="${tempDir}"/>
 		<javac 
 			debug="yes" 
 			destdir="${tempDir}" 
-			srcdir="${srcDir}" 
+			srcdir="${srcDir}"
+			classpath="dist/lib/junit.jar"
 		/>
 	</target>
 	
-	<target name="jar" depends="compile">
+	<target name="compile-test" depends="clean">
+		<mkdir dir="${tempDir}"/>
+		<javac 
+			debug="yes" 
+			destdir="${tempDir}" 
+			srcdir="${testDir}"
+			classpath="dist/lib/junit.jar"
+		/>
+	</target>
+	
+	<target name="jar" depends="compile-project">
 		<jar 
-			destfile="bin/bob.jar" 
+			destfile="dist/lib/bob.jar" 
 			basedir="${tempDir}" 
 			manifest="${manifest.mf}"
 		/>
 	</target>
 	
-	<target name="jar-without-manifest" depends="compile">
+	<target name="jar-without-manifest" depends="compile-project">
 		<jar
-			destfile="bin/bob.jar"
+			destfile="dist/lib/bob.jar"
 			basedir="${tempDir}"
 		>
 			<manifest>
 				<attribute name="Main-Class" value="com.github.wolfie.bob.Bob"/>
 			</manifest>	
 		</jar>
+	</target>
+	
+	<target name="test" depends="compile-project, compile-test">
+		<junit haltonfailure="yes" fork="yes" >
+			<classpath>
+				<filelist>
+					<file name="dist/lib/junit.jar"/>
+				</filelist>
+				<dirset dir="${tempDir}"/>
+			</classpath>
+			<formatter type="brief" usefile="false"/>
+			<test name="com.github.wolfie.bob.AllTests"/>
+		</junit>
 	</target>
 </project>

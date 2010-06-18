@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -87,6 +86,7 @@ public class Compilation implements Action {
   private String destinationPath;
   private final Set<String> jarPaths = new HashSet<String>();
   private final Set<File> usedJars = new HashSet<File>();
+  private Compilation compilationClassPath;
   
   /** The cached result for the destination */
   private File destinationDir = null;
@@ -96,8 +96,31 @@ public class Compilation implements Action {
   
   private boolean disableDebug = false;
   
+  private boolean processed = false;
+  
+  private final List<Compilation> includedCompilations = new ArrayList<Compilation>();
+  
   @Override
   public void process() {
+    
+    if (processed) {
+      Log.info("Ignoring a second compilation attempt");
+      return;
+    }
+    
+    processed = true;
+    
+    if (compilationClassPath != null) {
+      if (!compilationClassPath.isCompiled()) {
+        Log.fine("Compiling dependency first");
+        compilationClassPath.process();
+      } else {
+        Log.finer("Dependency compilation is already compiled");
+      }
+    } else {
+      Log.finer("No dependency compilation to perform");
+    }
+    
     final File sourceDir = getSourceDirectory();
     
     Log.fine("Finding source files from " + sourceDir.getAbsolutePath());
@@ -141,12 +164,19 @@ public class Compilation implements Action {
     }
   }
   
+  boolean isCompiled() {
+    return processed;
+  }
+  
   private Iterable<String> getCompilerOptions() {
-    if (disableDebug) {
-      return Collections.emptySet();
-    } else {
-      return Arrays.asList("-g");
+    final Set<String> compilerOptions = new HashSet<String>();
+    if (!disableDebug) {
+      compilerOptions.add("-g");
     }
+    
+    compilerOptions.add("-Xlint");
+    
+    return compilerOptions;
   }
   
   File getDestinationDirectory() {
@@ -169,8 +199,8 @@ public class Compilation implements Action {
    * </p>
    * 
    * <p>
-   * If the path was given via {@link #sourcesFrom(String)}, that will be used
-   * as the path. Otherwise, {@link #DEFAULT_SOURCE_PATH} (
+   * If the path was given via {@link #from(String)}, that will be used as the
+   * path. Otherwise, {@link #DEFAULT_SOURCE_PATH} (
    * {@value #DEFAULT_SOURCE_PATH}) will be used.
    * </p>
    * 
@@ -200,6 +230,8 @@ public class Compilation implements Action {
   private Iterable<? extends File> getClassPath() {
     final List<File> classpath = new ArrayList<File>();
     
+    // JARS
+    
     usedJars.clear();
     jarPaths.add(DEFAULT_JARS_PATH);
     
@@ -214,6 +246,12 @@ public class Compilation implements Action {
           classpath.add(jar);
         }
       }
+    }
+    
+    // CLASSES
+    
+    if (compilationClassPath != null) {
+      classpath.add(compilationClassPath.getDestinationDirectory());
     }
     
     return classpath;
@@ -242,12 +280,12 @@ public class Compilation implements Action {
    * All files will be compiled, recursively.
    * </p>
    * 
-   * @param path
+   * @param sourcePath
    *          The root source directory
    * @return <tt>this</tt>
    */
-  public Compilation sourcesFrom(final String path) {
-    sourcePath = path;
+  public Compilation from(final String sourcePath) {
+    this.sourcePath = sourcePath;
     return this;
   }
   
@@ -283,6 +321,16 @@ public class Compilation implements Action {
     return this;
   }
   
+  public Compilation use(final Compilation compilation) {
+    if (compilationClassPath == null) {
+      Util.checkNulls(compilation);
+      compilationClassPath = compilation;
+      return this;
+    } else {
+      throw new IllegalStateException("Compilation dependency cannot be re-set");
+    }
+  }
+  
   /**
    * Compile the sources without debug information.
    * 
@@ -290,6 +338,11 @@ public class Compilation implements Action {
    */
   public Compilation disableDebug() {
     disableDebug = true;
+    return this;
+  }
+  
+  public Compilation use(final Compilation compilation) {
+    includedCompilations.add(compilation);
     return this;
   }
 }

@@ -106,6 +106,7 @@ public class Bob {
         Log.info("Build successful");
       } else {
         Log.severe("Build FAILED!");
+        System.exit(1);
       }
     } else {
       Log.fine("Didn't build anything");
@@ -368,7 +369,7 @@ public class Bob {
       buildfile = argQueue.remove();
       Log.fine("Using " + buildfile + " as the buildfile");
     } else {
-      buildfile = DefaultValues.DEFAULT_BUILD_SRC_PATH;
+      buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
       Log.finer("Using the default " + buildfile + " as the buildfile");
     }
     
@@ -403,15 +404,15 @@ public class Bob {
     System.out.println(Util.wordWrap("  The buildfile is where all "
         + "the build targets are located at. If this parameter "
         + "is omitted, a default value of \""
-        + DefaultValues.DEFAULT_BUILD_SRC_DIR + File.separator
-        + DefaultValues.DEFAULT_BUILD_SRC_FILE + "\" will " + "be used."));
+        + Defaults.DEFAULT_BUILD_SRC_DIR + File.separator
+        + Defaults.DEFAULT_BUILD_SRC_FILE + "\" will " + "be used."));
     System.out.println();
     System.out.println("Buildtarget:");
     System.out.println(Util.wordWrap("  The buildtarget " + "is the method "
         + "within buildfile that will be invoked to create whatever "
         + "you wish to be created. If this parameter is "
         + "omitted, a default value of \""
-        + DefaultValues.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
+        + Defaults.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
   }
   
   private static void listTargets() throws MalformedURLException,

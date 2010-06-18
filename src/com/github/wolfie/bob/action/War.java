@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.Map;
 
-import com.github.wolfie.bob.DefaultValues;
+import com.github.wolfie.bob.Defaults;
 import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 
@@ -47,15 +47,15 @@ public class War extends Jar {
   @Override
   protected void setDefaults() {
     if (super.manifestPath == null) {
-      super.manifestPath = DefaultValues.WAR_MANIFEST_PATH;
+      super.manifestPath = Defaults.WAR_MANIFEST_PATH;
     }
     
     if (super.toPath == null) {
-      super.toPath = DefaultValues.WAR_PATH;
+      super.toPath = Defaults.WAR_PATH;
     }
     
     if (webContentPath == null) {
-      webContentPath = DefaultValues.WEB_CONTENT_PATH;
+      webContentPath = Defaults.WEB_CONTENT_PATH;
     }
     
     // WARs have classes and sources here, not in the root
@@ -64,7 +64,7 @@ public class War extends Jar {
     super.setDefaults();
     
     if (super.fromCompilation != null) {
-      super.fromCompilation.useJarsAt(DefaultValues.WAR_LIBS_PATH);
+      super.fromCompilation.useJarsAt(Defaults.WAR_LIBS_PATH);
     }
   }
   

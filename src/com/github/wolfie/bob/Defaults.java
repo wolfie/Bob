@@ -2,7 +2,7 @@ package com.github.wolfie.bob;
 
 import java.io.File;
 
-public final class DefaultValues {
+public final class Defaults {
   
   // bob core
   
@@ -27,6 +27,10 @@ public final class DefaultValues {
   public static final String WAR_PATH = ARTIFACTS_PATH + "/build.war";
   public static final String WAR_LIBS_PATH = WEB_CONTENT_PATH + "/WEB-INF/lib";
   
-  private DefaultValues() {
+  // junit
+  
+  public static final String DEFAULT_TEST_SRC_PATH = "test";
+  
+  private Defaults() {
   }
 }

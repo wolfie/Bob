@@ -4,7 +4,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +38,18 @@ public class UtilTest {
   @Test(expected = NullPointerException.class)
   public void testImplodeStringObjectArrayNullGlue() {
     Util.implode(null, new Object[] { new Object() });
+  }
+  
+  @Test
+  public void testImplodeEmptyArray() {
+    final String actual = Util.implode(",");
+    assertEquals("", actual);
+  }
+  
+  @Test
+  public void testImplodeEmptyCollection() {
+    final String actual = Util.implode(",", new ArrayList<String>());
+    assertEquals("", actual);
   }
   
   @Test
@@ -203,5 +217,10 @@ public class UtilTest {
   @Test
   public void testIsAnyOfNotMatchingNeedleMultipleHaystack() {
     assertFalse(Util.isAnyOf("foo", "bar", "baz"));
+  }
+  
+  @Test
+  public void testFail() {
+    fail("foo");
   }
 }
