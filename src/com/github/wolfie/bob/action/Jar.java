@@ -24,7 +24,6 @@ import com.github.wolfie.bob.exception.NoManifestFileFoundException;
 import com.github.wolfie.bob.exception.NoSourcesToIncludeException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 import com.github.wolfie.bob.exception.ProcessingException;
-import com.sun.tools.internal.ws.processor.ProcessorException;
 
 /**
  * <p>
@@ -292,7 +291,7 @@ public class Jar implements Action {
       final File directory = compilation.getDestinationDirectory();
       return Util.checkedDirectory(directory);
     } catch (final IOException e) {
-      throw new ProcessorException("Could not create a temporary directory.", e);
+      throw new ProcessingException("Could not create a temporary directory.", e);
     }
   }
   
