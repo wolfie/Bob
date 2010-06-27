@@ -8,7 +8,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 import com.github.wolfie.bob.Defaults;
-import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.Compilation;
@@ -44,7 +43,7 @@ public class JUnitTestRun implements Action {
     setDefaults();
     
     if (classesToTest.isEmpty()) {
-      Log.info("No tests marked to run");
+      System.err.println("No tests marked to run");
       return;
     }
     
@@ -54,9 +53,9 @@ public class JUnitTestRun implements Action {
     try {
       exitCode = new JavaLauncher(JUnitTestRunner.class)
           .ensureClassCanBeLoaded(JUNITCORE_CLASSNAME)
-          .addArg(File.createTempFile("bobJUnitResults", ".properties")
+          .addAppArg(File.createTempFile("bobJUnitResults", ".properties")
                   .getAbsolutePath())
-          .addArgs(getClassNamesToTest())
+          .addAppArgs(getClassNamesToTest())
           .run();
     } catch (final Exception e) {
       e.printStackTrace();

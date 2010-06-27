@@ -19,7 +19,7 @@ import com.github.wolfie.bob.Util;
  * <p/>
  * Arguments: <tt>[result_file_path] [junit_test_class ...]</tt>
  */
-public class JUnitTestRunner {
+class JUnitTestRunner {
   
   private static File resultsFile;
   

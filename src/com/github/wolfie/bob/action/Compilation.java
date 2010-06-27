@@ -18,7 +18,7 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
-import com.github.wolfie.bob.Log;
+import com.github.wolfie.bob.CompilationCache;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.CompilationFailedException;
 
@@ -52,7 +52,7 @@ import com.github.wolfie.bob.exception.CompilationFailedException;
  */
 public class Compilation implements Action {
   
-  private static class BobDiagnosticListener implements
+  public static class BobDiagnosticListener implements
       DiagnosticListener<JavaFileObject> {
     private final List<Diagnostic<? extends JavaFileObject>> diagnostics = new ArrayList<Diagnostic<? extends JavaFileObject>>();
     
@@ -100,11 +100,13 @@ public class Compilation implements Action {
   
   private final List<Compilation> includedCompilations = new ArrayList<Compilation>();
   
+  private static CompilationCache compileCache;
+  
   @Override
   public void process() {
     
     if (processed) {
-      Log.info("Ignoring a second compilation attempt");
+      System.out.println("Ignoring a second compilation attempt");
       return;
     }
     
@@ -112,24 +114,25 @@ public class Compilation implements Action {
     
     if (compilationClassPath != null) {
       if (!compilationClassPath.isCompiled()) {
-        Log.fine("Compiling dependency first");
+        System.out.println("Compiling dependency first");
         compilationClassPath.process();
       } else {
-        Log.finer("Dependency compilation is already compiled");
+        System.out.println("Dependency compilation is already compiled");
       }
     } else {
-      Log.finer("No dependency compilation to perform");
+      System.out.println("No dependency compilation to perform");
     }
     
     final File sourceDir = getSourceDirectory();
     
-    Log.fine("Finding source files from " + sourceDir.getAbsolutePath());
+    System.out.println("Finding source files from "
+        + sourceDir.getAbsolutePath());
     
     final Collection<File> javaFiles = Util.getFilesRecursively(sourceDir,
           Util.JAVA_SOURCE_FILE);
     
     for (final File file : javaFiles) {
-      Log.finer("Found file " + file.getPath());
+      System.out.println("Found file " + file.getPath());
     }
     
     final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -237,11 +240,11 @@ public class Compilation implements Action {
     
     for (final String jarPath : jarPaths) {
       final File jarDir = new File(jarPath);
-      Log.fine("Finding jars at " + jarDir.getAbsolutePath());
+      System.out.println("Finding jars at " + jarDir.getAbsolutePath());
       
       if (jarDir.isDirectory()) {
         for (final File jar : jarDir.listFiles(JAR_FILTER)) {
-          Log.finer("Found " + jar.getAbsolutePath());
+          System.out.println("Found " + jar.getAbsolutePath());
           usedJars.add(jar);
           classpath.add(jar);
         }
@@ -341,8 +344,18 @@ public class Compilation implements Action {
     return this;
   }
   
-  public Compilation use(final Compilation compilation) {
-    includedCompilations.add(compilation);
-    return this;
+  /**
+   * Set the cache for compiled sources and compiled classes.
+   * 
+   * @throws IllegalStateException
+   *           if the cache is being set twice.
+   */
+  public static void setCache(
+      final CompilationCache compileCache) {
+    if (Compilation.compileCache == null) {
+      Compilation.compileCache = compileCache;
+    } else {
+      throw new IllegalStateException("Cannot re-set the compileCache");
+    }
   }
 }

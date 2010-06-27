@@ -13,7 +13,7 @@ package com.github.wolfie.bob.action.optional;
  * [test_header] = [string: failure_message]
  * </pre>
  */
-public class JUnitTestResultConstants {
+class JUnitTestResultConstants {
   
   static final String SUCCESS = "success";
   static final String FAILED = "failed";

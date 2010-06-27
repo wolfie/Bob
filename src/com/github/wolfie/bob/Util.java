@@ -181,7 +181,7 @@ public class Util {
    */
   public static void createDir(final File directory) {
     if (!directory.isDirectory()) {
-      Log.finer("Creating directory " + directory.getAbsolutePath());
+      System.out.println("Creating directory " + directory.getAbsolutePath());
       final boolean success = directory.mkdir();
       
       if (!success) {
@@ -194,7 +194,7 @@ public class Util {
             + directory.getAbsolutePath()
             + " since it is an existing file.");
       } else {
-        Log.info("Not creating " + directory.getAbsolutePath()
+        System.out.println("Not creating " + directory.getAbsolutePath()
             + " since it already exists.");
       }
     }
@@ -217,14 +217,14 @@ public class Util {
         }
       }
       
-      Log.finer("Deleting " + file.getAbsolutePath());
+      System.out.println("Deleting " + file.getAbsolutePath());
       final boolean success = file.delete();
       if (!success) {
         throw new BobRuntimeException("Could not delete "
             + file.getAbsolutePath());
       }
     } else {
-      Log.info("Not removing " + file.getAbsolutePath()
+      System.out.println("Not removing " + file.getAbsolutePath()
           + " since it does not exist.");
     }
   }

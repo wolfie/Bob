@@ -17,7 +17,6 @@ import java.util.Set;
 
 import org.apache.tools.ant.taskdefs.PumpStreamHandler;
 
-import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 
@@ -27,7 +26,8 @@ public class JavaLauncher {
       .getProperty("path.separator");
   
   private final Class<?> classToRun;
-  private final Set<String> userJarPaths = new HashSet<String>();
+  private final Set<String> userClassPaths = new HashSet<String>();
+  private final Set<String> userClassPathsForced = new HashSet<String>();
   private final Set<String> classesToLoad = new HashSet<String>();
   
   /**
@@ -50,26 +50,37 @@ public class JavaLauncher {
   private final Map<String, ClassLoader> bobClassLoaderCache = new HashMap<String, ClassLoader>();
   private boolean bobClassLoaderCacheIsInitialized = false;
   
-  private final List<String> givenArgs = new ArrayList<String>();
+  private final List<String> givenAppArgs = new ArrayList<String>();
+  private final List<String> givenJvmArgs = new ArrayList<String>();
   
   public JavaLauncher(final Class<?> classToRun) {
     Util.checkNulls(classToRun);
     this.classToRun = classToRun;
+    
     ensureClassCanBeLoaded(classToRun.getName());
   }
   
   /**
-   * Defines a user-given path to a jar that should (but is not guaranteed to)
-   * exist.
+   * Defines a user-given path to a classpath that should (but is not guaranteed
+   * to) exist.
    * <p/>
-   * This method can be called many times to add the amount of jar-files
+   * A classpath entry might be either a directory containing classes, or a jar
+   * file.
+   * <p/>
+   * This method can be called many times to add the amount of classpath entries
    * provided by the user.
    * 
    * @return <code>this</code>
    */
-  public JavaLauncher userProvidedJar(final String jarPath) {
-    Util.checkNulls(jarPath);
-    userJarPaths.add(jarPath);
+  public JavaLauncher userProvidedClassPath(final String classPath) {
+    Util.checkNulls(classPath);
+    userClassPaths.add(classPath);
+    return this;
+  }
+  
+  public JavaLauncher userProvidedForcedClassPath(final String classPath) {
+    Util.checkNulls(classPath);
+    userClassPathsForced.add(classPath);
     return this;
   }
   
@@ -89,6 +100,36 @@ public class JavaLauncher {
   }
   
   public int run() throws IOException {
+    final String[] cmd = getCommands();
+    
+    for (final String string : cmd) {
+      System.out.println(string);
+    }
+    
+    final Process process = Runtime.getRuntime().exec(cmd, null, null);
+    final PumpStreamHandler streamHandler = setupPumpStreamHandler(process);
+    
+    try {
+      process.waitFor();
+    } catch (final InterruptedException e) {
+      process.destroy();
+    }
+    
+    streamHandler.stop();
+    
+    return process.exitValue();
+  }
+  
+  private PumpStreamHandler setupPumpStreamHandler(final Process process) {
+    final PumpStreamHandler streamHandler = new PumpStreamHandler();
+    streamHandler.setProcessErrorStream(process.getErrorStream());
+    streamHandler.setProcessOutputStream(process.getInputStream());
+    streamHandler.setProcessInputStream(process.getOutputStream());
+    streamHandler.start();
+    return streamHandler;
+  }
+  
+  private String[] getCommands() {
     final String jreCommand = getJreCommand();
     final String classPathArgument = getClassPathArgument();
     final String executableClassName = classToRun.getName();
@@ -101,28 +142,12 @@ public class JavaLauncher {
       cmdList.add(classPathArgument);
     }
     
+    cmdList.addAll(givenJvmArgs);
     cmdList.add(executableClassName);
-    
-    cmdList.addAll(givenArgs);
+    cmdList.addAll(givenAppArgs);
     
     final String[] cmd = cmdList.toArray(new String[cmdList.size()]);
-    final Process process = Runtime.getRuntime().exec(cmd, null, null);
-    
-    final PumpStreamHandler streamHandler = new PumpStreamHandler();
-    streamHandler.setProcessErrorStream(process.getErrorStream());
-    streamHandler.setProcessOutputStream(process.getInputStream());
-    streamHandler.setProcessInputStream(process.getOutputStream());
-    streamHandler.start();
-    
-    try {
-      process.waitFor();
-    } catch (final InterruptedException e) {
-      process.destroy();
-    }
-    
-    streamHandler.stop();
-    
-    return process.exitValue();
+    return cmd;
   }
   
   private String getJreCommand() {
@@ -138,9 +163,12 @@ public class JavaLauncher {
   }
   
   private String getClassPathArgument() {
-    final Set<String> jarsToAddToClasspath = getJarsToAddToClasspath();
-    return Util.implode(CLASSPATH_SEPARATOR,
-          jarsToAddToClasspath);
+    
+    final Set<String> classPath = new HashSet<String>();
+    classPath.addAll(getJarsToAddToClasspath());
+    classPath.addAll(userClassPathsForced);
+    
+    return Util.implode(CLASSPATH_SEPARATOR, classPath);
   }
   
   private Set<String> getJarsToAddToClasspath() {
@@ -164,7 +192,7 @@ public class JavaLauncher {
           "The following class(es) couldn't be loaded: "
               + Util.implode(", ", classesUnableToLoad) + "\n"
               + "Searched the following files: "
-              + Util.implode(", ", userJarPaths));
+              + Util.implode(", ", userClassPaths));
     }
   }
   
@@ -187,21 +215,21 @@ public class JavaLauncher {
   private String findClassFromJars(final String classNameToLoad,
       final Map<String, ClassLoader> cache) {
     
-    Log.finer("Searching for " + classNameToLoad);
+    System.out.println("Searching for " + classNameToLoad);
     for (final Map.Entry<String, ClassLoader> entry : cache.entrySet()) {
       try {
         final ClassLoader classLoader = entry.getValue();
         
-        Log.finer("Trying " + entry.getKey());
+        System.out.println("Trying " + entry.getKey());
         
         classLoader.loadClass(classNameToLoad);
         
-        Log.finer("Found it!");
+        System.out.println("Found it!");
         // it was loaded, since no exception was thrown. Return the jar name.
         return entry.getKey();
         
       } catch (final ClassNotFoundException e) {
-        Log.finer("Nope...");
+        System.out.println("Nope...");
         // ignore, just try the next classloader.
       }
     }
@@ -215,7 +243,7 @@ public class JavaLauncher {
   private Map<String, ClassLoader> getUserClassLoaderCache() {
     if (!userClassLoaderCacheIsInitialized) {
       userClassLoaderCacheIsInitialized = true;
-      initializeClassLoaderCache(userClassLoaderCache, userJarPaths);
+      initializeClassLoaderCache(userClassLoaderCache, userClassPaths);
     }
     
     return userClassLoaderCache;
@@ -252,11 +280,11 @@ public class JavaLauncher {
         return jarPaths;
         
       } else {
-        Log.severe("The BOB_LIB path, " + file.getAbsolutePath()
+        System.err.println("The BOB_LIB path, " + file.getAbsolutePath()
             + ", is not an existing directory!");
       }
     } else {
-      Log.severe("BOB_LIB environment variable is unset!");
+      System.err.println("BOB_LIB environment variable is unset!");
     }
     
     return Collections.emptySet();
@@ -278,18 +306,33 @@ public class JavaLauncher {
         }
         
       } else {
-        Log.info("File \"" + jarPath + "\" doesn't exist");
+        System.err.println("File \"" + jarPath + "\" doesn't exist");
       }
     }
   }
   
-  public JavaLauncher addArg(final String arg) {
-    givenArgs.add(arg);
+  public JavaLauncher addAppArg(final String arg) {
+    givenAppArgs.add(arg);
     return this;
   }
   
-  public JavaLauncher addArgs(final Collection<String> args) {
-    givenArgs.addAll(args);
+  public JavaLauncher addAppArgs(final Collection<String> args) {
+    givenAppArgs.addAll(args);
     return this;
+  }
+  
+  public JavaLauncher addJvmArg(final String arg) {
+    givenJvmArgs.add(arg);
+    return this;
+  }
+  
+  public JavaLauncher addJvmArgs(final Collection<String> args) {
+    givenJvmArgs.addAll(args);
+    return this;
+  }
+  
+  @Override
+  public String toString() {
+    return Util.implode(" ", (Object[]) getCommands());
   }
 }

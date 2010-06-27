@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Map;
 
 import com.github.wolfie.bob.Defaults;
-import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 
 /**
@@ -71,7 +70,7 @@ public class War extends Jar {
   @Override
   protected void subClassProcessHook(final Map<String, File> entryMap) {
     
-    Log.fine("Finding web content files from " + webContentPath);
+    System.out.println("Finding web content files from " + webContentPath);
     final File webContentDirectory = new File(webContentPath);
     for (final File webFile : getWebContentFiles()) {
       
@@ -82,17 +81,18 @@ public class War extends Jar {
         continue;
       }
       
-      Log.finer(entryName + " <- " + webFile.getAbsolutePath());
+      System.out.println(entryName + " <- " + webFile.getAbsolutePath());
       entryMap.put(entryName, webFile);
     }
     
     if (webXmlPath != null) {
       final File webXmlFile = new File(webXmlPath);
       if (webXmlFile.isFile()) {
-        Log.fine("Using " + webXmlFile.getAbsolutePath() + " as web.xml");
+        System.out.println("Using " + webXmlFile.getAbsolutePath()
+            + " as web.xml");
         entryMap.put(WEB_XML_PATH, webXmlFile);
       } else {
-        Log.warning(webXmlPath + " is not an existing file.");
+        System.err.println(webXmlPath + " is not an existing file.");
       }
     }
     
@@ -100,7 +100,7 @@ public class War extends Jar {
   }
   
   private Collection<File> getWebContentFiles() {
-    Log.fine("Finding web archive files");
+    System.out.println("Finding web archive files");
     return Util.getFilesRecursively(new File(webContentPath));
   }
   

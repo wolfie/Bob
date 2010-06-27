@@ -1,18 +1,23 @@
 package com.github.wolfie.bob;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-import java.util.logging.Level;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -22,7 +27,11 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.wolfie.bob.CompilationCache.Builder;
 import com.github.wolfie.bob.action.Action;
+import com.github.wolfie.bob.action.Compilation;
+import com.github.wolfie.bob.action.Compilation.BobDiagnosticListener;
+import com.github.wolfie.bob.action.optional.JavaLauncher;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BuildTargetException;
 import com.github.wolfie.bob.exception.CompilationFailedException;
@@ -39,12 +48,14 @@ import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
  * @author Henrik Paul
  * @since 1.0.0
  */
-public class Bob {
+public final class Bob {
   public static final int VERSION_MAJOR = 0;
   public static final int VERSION_MINOR = 0;
   public static final int VERSION_MAINTENANCE = 0;
   public static final String VERSION_BUILD = "pre-alpha";
   public static final String VERSION;
+  
+  private static final String CACHE_SYSTEM_PROPERTY = "cache.location";
   
   private static boolean showHelp = false;
   private static boolean skipBuilding = false;
@@ -78,7 +89,11 @@ public class Bob {
       handleArgs(args);
       
       if (!skipBuilding) {
-        run();
+        if (shouldBeBootstrapped()) {
+          bootstrap();
+        } else {
+          run();
+        }
       }
       
       if (showHelp) {
@@ -90,81 +105,266 @@ public class Bob {
       }
       
     } catch (final NoBuildFileFoundException e) {
-      Log.severe(e.getMessage());
-      Log.severe("Are you sure you're in the right directory?");
+      e.printStackTrace();
+      System.err.println("Are you sure you're in the right directory?");
     } catch (final UnrecognizedArgumentException e) {
-      Log.severe(e.getMessage());
+      System.err.println(e.getMessage());
     } catch (final UnexpectedArgumentAmountException e) {
-      Log.severe(e.getMessage());
+      System.err.println(e.getMessage());
     } catch (final Exception e) {
-      // catch-all last resort
-      Log.severe(e.getMessage());
+      e.printStackTrace();
     }
     
     if (!skipBuilding) {
       if (success) {
-        Log.info("Build successful");
+        System.out.println("Build successful");
       } else {
-        Log.severe("Build FAILED!");
+        System.err.println("Build FAILED!");
         System.exit(1);
       }
     } else {
-      Log.fine("Didn't build anything");
+      System.out.println("Didn't build anything");
     }
   }
   
-  private static final void run() {
+  private static boolean shouldBeBootstrapped() {
+    return !System.getProperties().containsKey(CACHE_SYSTEM_PROPERTY);
+  }
+  
+  private static void run() {
+    
+    System.out.println(":D");
+    
+    final BootstrapInfo info = getBootstrapInfo();
+    Compilation.setCache(info.getCache());
+    
+    final File buildFile = getBuildFile();
+    final File buildClassFile = compile(buildFile, info.getClasspath());
+    
+    Class<? extends BobBuild> buildClass;
     try {
-      final File buildFile = getBuildFile();
-      final File buildClassFile = compile(buildFile);
-      
+      buildClass = getBuildClass(buildClassFile);
+    } catch (final ClassNotFoundException e) {
+      throw new BootstrapError(buildClassFile.getAbsolutePath()
+          + " didn't contain a valid build class", e);
+    }
+    
+    final Method buildMethod = getBuildMethod(buildClass);
+    final Action action = getAction(buildMethod, buildClass);
+    
+    execute(action, buildClass, buildMethod);
+  }
+  
+  private static Class<? extends BobBuild> getBuildClass(
+      final File buildClassFile) throws ClassNotFoundException {
+    
+    try {
       final URLClassLoader urlClassLoader = new URLClassLoader(
           new URL[] { buildClassFile.toURI().toURL() });
-      final Class<?> buildClass = urlClassLoader.loadClass(getBuildClassName());
+      @SuppressWarnings("unchecked")
+      final Class<? extends BobBuild> buildClass =
+          (Class<? extends BobBuild>) urlClassLoader
+              .loadClass(getBuildClassName());
+      return buildClass;
+    } catch (final MalformedURLException e) {
+      throw new BootstrapError("This really shouldn't happen", e);
+    }
+  }
+  
+  /**
+   * @throws BootstrapError
+   *           if there was an exception during retrieving the
+   *           {@link CompilationCache}.
+   */
+  private static BootstrapInfo getBootstrapInfo() {
+    final String cacheFilePath = System.getProperty(CACHE_SYSTEM_PROPERTY);
+    final File cacheFile = new File(cacheFilePath);
+    
+    try {
+      return deserializeBootstrapInfoFromFile(cacheFile);
+    } catch (final IOException e) {
+      throw new BootstrapError(e);
+    } catch (final ClassNotFoundException e) {
+      throw new BootstrapError(e);
+    }
+  }
+  
+  /**
+   * Bootstraps Bob
+   * <p/>
+   * This method will try to compile the project, and restart Bob with the
+   * compiled project in its classpath. It will also build a
+   * {@link CompilationCache} object, which will be serialized into a file. This
+   * file will, in turn, be given to the rebooted Bob as a system property
+   * <tt>{@value #CACHE_SYSTEM_PROPERTY}</tt>.
+   * <p/>
+   * This method will never return, but terminate before returning.
+   */
+  private static void bootstrap() {
+    final File buildFile = getBuildFile();
+    
+    final ProjectDescription desc = BootstrapUtil
+          .getProjectDescription(buildFile);
+    
+    try {
+      final BootstrapInfo info = compileAndGetBootstrapInfo(desc);
+      final File serializedCache = serializeBootstrapInfoIntoFile(info);
       
-      final Method buildMethod = getBuildMethod(buildClass);
+      System.out.println("Serialized compilation cache into "
+          + serializedCache.getAbsolutePath());
       
-      Action result = null;
+      final JavaLauncher bobRebooter = new JavaLauncher(Bob.class);
+      final String jvmArg = String.format("-D%s=%s", CACHE_SYSTEM_PROPERTY,
+          serializedCache.getAbsolutePath());
+      bobRebooter.addJvmArg(jvmArg);
+      
+      for (final File classpathFile : info.getClasspath()) {
+        bobRebooter
+            .userProvidedForcedClassPath(classpathFile.getAbsolutePath());
+      }
+      
+      System.out.println("Rebooting Bob with " + bobRebooter);
       try {
-        result = (Action) buildMethod.invoke(null);
-        execute(result, buildClass, buildMethod);
-      } catch (final NullPointerException e) {
-        // as per javadoc, the method was not static.
-        
-        try {
-          final Object buildObject = buildClass.newInstance();
-          result = (Action) buildMethod.invoke(buildObject);
-          execute(result, buildClass, buildMethod);
-          
-        } catch (final InstantiationException e2) {
-          System.err.println(buildMethod + " is an instance method, but the"
-              + " class doesn't have a public default constructor.");
-          e2.printStackTrace();
-        } catch (final IllegalAccessException e2) {
-          System.err.println(buildMethod + " is an instance method, but the"
-              + " class doesn't have a public default constructor.");
-          e2.printStackTrace();
-        }
-      } catch (final IllegalArgumentException e) {
-        System.err.println(buildMethod.getName() + " was annotated with @"
-            + Target.class.getName() + ", but the method requires arguments, "
-            + "which it may not do.");
-        e.printStackTrace();
-      } catch (final IllegalAccessException e) {
+        Thread.sleep(10000);
+      } catch (final InterruptedException e) {
         // TODO Auto-generated catch block
         e.printStackTrace();
       }
-    } catch (final MalformedURLException e) {
-      // TODO Auto-generated catch block
+      System.exit(bobRebooter.run());
+    } catch (final IOException e) {
       e.printStackTrace();
-    } catch (final ClassNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (final InvocationTargetException e) {
-      System.err.println("The build method threw unhandled exceptions. "
-          + "See below for more details.");
-      e.printStackTrace();
+      System.exit(1);
     }
+  }
+  
+  /**
+   * @see #deserializeBootstrapInfoFromFile(File)
+   */
+  private static File serializeBootstrapInfoIntoFile(
+      final BootstrapInfo info) throws IOException {
+    
+    final File tempFile = File.createTempFile("BobBootstrapInfo", null);
+    final FileOutputStream fos = new FileOutputStream(tempFile);
+    final ObjectOutputStream oos = new ObjectOutputStream(fos);
+    oos.writeObject(info);
+    oos.flush();
+    oos.close();
+    fos.flush();
+    fos.close();
+    
+    return tempFile;
+  }
+  
+  /**
+   * @throws IOException
+   * @throws ClassNotFoundException
+   * @see #serializeBootstrapInfoIntoFile(BootstrapInfo)
+   */
+  private static BootstrapInfo deserializeBootstrapInfoFromFile(
+      final File file) throws IOException, ClassNotFoundException {
+    final FileInputStream fis = new FileInputStream(file);
+    final ObjectInputStream ois = new ObjectInputStream(fis);
+    return (BootstrapInfo) ois.readObject();
+  }
+  
+  private static Action getAction(final Method buildMethod,
+      final Class<? extends BobBuild> buildClass) {
+    try {
+      try {
+        return (Action) buildMethod.invoke(null);
+      } catch (final NullPointerException e) {
+        return (Action) buildMethod.invoke(buildClass
+            .newInstance());
+      }
+    } catch (final Exception e) {
+      throw new BootstrapError(e);
+    }
+  }
+  
+  private static BootstrapInfo compileAndGetBootstrapInfo(
+      final ProjectDescription desc)
+      throws IOException {
+    final Collection<File> classPath = getClassPath(desc);
+    final File classOutputDir = Util.getTemporaryDirectory();
+    classPath.add(classOutputDir);
+    
+    final Builder cacheBuilder = new CompilationCache.Builder();
+    
+    for (final String sourcePath : desc.getSourcePaths()) {
+      final Touple<Iterable<File>, Iterable<URI>> touple = compile(sourcePath,
+          classPath, classOutputDir);
+      
+      cacheBuilder.add(sourcePath, touple.getFirst(), touple.getSecond());
+    }
+    
+    final BootstrapInfo info = new BootstrapInfo(cacheBuilder.build(),
+        classPath);
+    return info;
+  }
+  
+  private static Touple<Iterable<File>, Iterable<URI>> compile(
+      final String sourcePath,
+      final Iterable<File> classPath, final File classOutputDir)
+      throws IOException {
+    final Iterable<File> sourceFiles = Util.getFilesRecursively(new File(
+        sourcePath), Util.JAVA_SOURCE_FILE);
+    
+    final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    
+    final BobDiagnosticListener diagnosticListener = new BobDiagnosticListener();
+    final BobWrappedJavaFileManager fileManager = new BobWrappedJavaFileManager(
+        compiler.getStandardFileManager(diagnosticListener, null, null));
+    fileManager.setLocation(StandardLocation.CLASS_PATH, classPath);
+    fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections
+        .singleton(classOutputDir));
+    final Iterable<? extends JavaFileObject> sourceFileObjects = fileManager
+        .getJavaFileObjectsFromFiles(sourceFiles);
+    compiler.getTask(null, fileManager, diagnosticListener, null, null,
+        sourceFileObjects).call();
+    
+    if (diagnosticListener.hasProblems()) {
+      for (final Diagnostic<? extends JavaFileObject> problem : diagnosticListener
+          .getProblems()) {
+        System.err.println(problem);
+      }
+      System.exit(1);
+      return Touple.ofNull();
+    } else {
+      return Touple.of(sourceFiles, (Iterable<URI>) fileManager
+          .getClassFileURIs());
+    }
+  }
+  
+  private static Collection<File> getClassPath(final ProjectDescription desc) {
+    final Collection<File> jarFiles = new HashSet<File>();
+    
+    for (final String jarFileName : desc.getJarFiles()) {
+      final File jarFile = new File(jarFileName);
+      if (jarFile.canRead()) {
+        System.out.println("Added " + jarFile.getAbsolutePath());
+        jarFiles.add(jarFile);
+      } else {
+        System.err.println("Could not be read: " + jarFile.getAbsolutePath());
+      }
+    }
+    
+    for (final String jarPathName : desc.getJarPaths()) {
+      final File jarPath = new File(jarPathName);
+      if (jarPath.canRead() && jarPath.isDirectory()) {
+        System.out.println("Adding all jars from " + jarPath.getAbsolutePath());
+        for (final File jarFile : jarPath.listFiles()) {
+          if (jarFile.getName().endsWith(".jar")) {
+            System.out.println("Added " + jarFile.getName());
+            jarFiles.add(jarFile);
+          }
+        }
+      } else {
+        System.err.println("Could not read directory "
+            + jarPath.getAbsolutePath());
+      }
+    }
+    
+    return jarFiles;
   }
   
   private static void execute(final Action result, final Class<?> buildClass,
@@ -265,7 +465,12 @@ public class Bob {
         buildfile.lastIndexOf("."));
   }
   
-  private static File compile(final File buildFile)
+  private static File compile(final File buildFile) {
+    return compile(buildFile, new HashSet<File>());
+  }
+  
+  private static File compile(final File buildFile,
+      final Collection<File> classpath)
       throws CompilationFailedException {
     
     final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -278,6 +483,7 @@ public class Bob {
           .getStandardFileManager(diagnosticListener, null, null);
       fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections
           .singleton(tempDir));
+      fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
       
       final Iterable<? extends JavaFileObject> javaFiles = fileManager
           .getJavaFileObjects(buildFile);
@@ -329,21 +535,19 @@ public class Bob {
       // LOGGING
       
       if (Util.isAnyOf(arg, "-v", "--verbose")) {
-        Log.setLevel(Level.FINE);
-        Log.fine("Verbose logging on");
+        // TODO
       }
 
       else if (Util.isAnyOf(arg, "-vv", "--very-verbose")) {
-        Log.setLevel(Level.FINER);
-        Log.finer("Very verbose logging on");
+        // TODO
       }
 
       else if (Util.isAnyOf(arg, "-s", "--silent")) {
-        Log.setLevel(Level.WARNING);
+        // TODO
       }
 
       else if (Util.isAnyOf(arg, "-ss", "--very-silent")) {
-        Log.setLevel(Level.SEVERE);
+        // TODO
       }
 
       else if (Util.isAnyOf(arg, "-l", "--list-targets")) {
@@ -367,15 +571,16 @@ public class Bob {
     
     if (!argQueue.isEmpty()) {
       buildfile = argQueue.remove();
-      Log.fine("Using " + buildfile + " as the buildfile");
+      System.out.println("Using " + buildfile + " as the buildfile");
     } else {
       buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
-      Log.finer("Using the default " + buildfile + " as the buildfile");
+      System.out
+          .println("Using the default " + buildfile + " as the buildfile");
     }
     
     if (!argQueue.isEmpty()) {
       buildtarget = argQueue.remove();
-      Log.fine("Using \"" + buildtarget + "\" as the build target");
+      System.out.println("Using \"" + buildtarget + "\" as the build target");
     }
     // else {} is handled at #getBuildMethod()
     

@@ -18,7 +18,6 @@ import java.util.jar.Manifest;
 
 import com.github.wolfie.bob.Bob;
 import com.github.wolfie.bob.Defaults;
-import com.github.wolfie.bob.Log;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
@@ -73,25 +72,27 @@ public class Jar implements Action {
     
     final File classesDir = getClassesDirectory();
     
-    Log.fine("Finding classfiles from " + classesDir.getAbsolutePath());
+    System.out.println("Finding classfiles from "
+        + classesDir.getAbsolutePath());
     final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
         Util.JAVA_CLASS_FILE);
     for (final File classFile : classFiles) {
       final String entryName = archiveClassSourceDestination
           + Util.relativeFileName(classesDir, classFile);
-      Log.finer(entryName + " <- " + classFile.getAbsolutePath());
+      System.out.println(entryName + " <- " + classFile.getAbsolutePath());
       entryMap.put(entryName, classFile);
     }
     
     try {
       final File sourcesDir = getSourcesDirectory();
-      Log.fine("Finding sources from " + sourcesDir.getAbsolutePath());
+      System.out
+          .println("Finding sources from " + sourcesDir.getAbsolutePath());
       final Collection<File> sourceFiles = Util.getFilesRecursively(
           sourcesDir, Util.JAVA_SOURCE_FILE);
       for (final File sourceFile : sourceFiles) {
         final String entryName = archiveClassSourceDestination
             + Util.relativeFileName(sourcesDir, sourceFile);
-        Log.finer(entryName + " <- " + sourceFile.getAbsolutePath());
+        System.out.println(entryName + " <- " + sourceFile.getAbsolutePath());
         entryMap.put(entryName, sourceFile);
       }
     } catch (final NoSourcesToIncludeException e) {
@@ -146,7 +147,7 @@ public class Jar implements Action {
       
       jarOutputStream.close();
       
-      Log.info("Wrote " + destination.getAbsolutePath());
+      System.out.println("Wrote " + destination.getAbsolutePath());
     } catch (final Exception e) {
       throw new ProcessingException(e);
     }
@@ -184,8 +185,9 @@ public class Jar implements Action {
       if (fromCompilation != null) {
         return fromCompilation.getSourceDirectory();
       } else {
-        Log.severe("Although requested, no sources will be included, since " +
-            "there are no available chains to take sources from.");
+        System.out
+            .println("Although requested, no sources will be included, since " +
+                "there are no available chains to take sources from.");
         throw new NoSourcesToIncludeException();
       }
     } else {
@@ -196,10 +198,11 @@ public class Jar implements Action {
   private File getManifestFile() throws NoManifestFileFoundException {
     final File manifestFile = new File(manifestPath);
     if (manifestFile.exists() && manifestFile.canRead()) {
-      Log.finer("Using manifest file from " + manifestFile.getAbsolutePath());
+      System.out.println("Using manifest file from "
+          + manifestFile.getAbsolutePath());
       return manifestFile;
     } else {
-      Log.info("Could not include manifest from file "
+      System.out.println("Could not include manifest from file "
           + manifestFile.getAbsolutePath());
       throw new NoManifestFileFoundException();
     }
@@ -308,7 +311,7 @@ public class Jar implements Action {
   protected static void add(final String entryName, final File source,
       final JarOutputStream target) throws IOException {
     
-    Log.finer("Compressing " + entryName);
+    System.out.println("Compressing " + entryName);
     
     final JarEntry entry = new JarEntry(entryName);
     entry.setTime(source.lastModified());
