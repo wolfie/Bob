@@ -86,8 +86,8 @@ public class Jar implements Action {
       final File sourcesDir = getSourcesDirectory();
       System.out
           .println("Finding sources from " + sourcesDir.getAbsolutePath());
-      final Collection<File> sourceFiles = Util.getFilesRecursively(
-          sourcesDir, Util.JAVA_SOURCE_FILE);
+      final Collection<File> sourceFiles = Util.getFilesRecursively(sourcesDir,
+          Util.JAVA_SOURCE_FILE);
       for (final File sourceFile : sourceFiles) {
         final String entryName = archiveClassSourceDestination
             + Util.relativeFileName(sourcesDir, sourceFile);
@@ -185,8 +185,8 @@ public class Jar implements Action {
         return fromCompilation.getSourceDirectory();
       } else {
         System.out
-            .println("Although requested, no sources will be included, since " +
-                "there are no available chains to take sources from.");
+            .println("Although requested, no sources will be included, since "
+                + "there are no available chains to take sources from.");
         throw new NoSourcesToIncludeException();
       }
     } else {
@@ -308,8 +308,10 @@ public class Jar implements Action {
    *          The Jar's {@link JarOutputStream}.
    * @throws IOException
    */
-  protected static void add(final String entryName, final File source,
+  protected static void add(String entryName, final File source,
       final JarOutputStream target) throws IOException {
+    
+    entryName = entryName.replace('\\', '/');
     
     System.out.println("Compressing " + entryName);
     
@@ -407,8 +409,8 @@ public class Jar implements Action {
       sourcesFromChain = true;
       return this;
     } else {
-      throw new IllegalStateException("Sources were already being taken from " +
-          "a path. Can't take sources from two places at once");
+      throw new IllegalStateException("Sources were already being taken from "
+          + "a path. Can't take sources from two places at once");
     }
   }
   
@@ -427,8 +429,8 @@ public class Jar implements Action {
       sourcesFromPath = path;
       return this;
     } else {
-      throw new IllegalStateException("Sources were already being taken " +
-          "from the chain. Can't take sources from two places at once");
+      throw new IllegalStateException("Sources were already being taken "
+          + "from the chain. Can't take sources from two places at once");
     }
   }
 }
