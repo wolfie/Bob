@@ -45,28 +45,45 @@ set CLASSPATH=%CLASSPATH:~0,-1%
 goto stripClasspath
 
 :findBobHome
-if exist "%BOB_HOME%\lib\bob.jar" goto checkJava
+if exist "%BOB_HOME%\lib\bob.jar" goto checkBobLib
 if not exist "%ProgramFiles%\bob" goto checkSystemDrive
 set BOB_HOME=%ProgramFiles%\bob
-goto checkJava
+goto checkBobLib
 
 :checkSystemDrive
 if not exist "%SystemDrive%\bob\lib\bob.jar" goto checkCDrive
-set ANT_HOME=%SystemDrive%\bob
-goto checkJava
+set BOB_HOME=%SystemDrive%\bob
+goto checkBobLib
 
 :checkCDrive
 if not exist "C:\bob\lib\bob.jar" goto checkDDrive
-set ANT_HOME=C:\bob
-goto checkJava
+set BOB_HOME=C:\bob
+goto checkBobLib
 
 :checkDDrive
 if not exist "D:\bob\lib\bob.jar" goto noBobHome
-set ANT_HOME=D:\bob
-goto checkJava
+set BOB_HOME=D:\bob
+goto checkBobLib
 
 :noBobHome
 echo BOB_HOME is set incorrectly or Bob could not be located. Please set BOB_HOME.
+goto end
+
+:checkBobLib
+if "%BOB_LIB%"=="" goto setDefaultBobLib
+:stripBobLib
+if not _%BOB_LIB:~-1%==_\ goto checkJava
+set BOB_LIB=%BOB_LIB:~0,-1%
+REM make sure it's clean
+goto stripBobLib
+
+:setDefaultBobLib
+if not exist "%BOB_HOME%\lib" goto noBobLib
+set BOB_LIB=%BOB_HOME%\lib
+goto checkJava
+
+:noBobLib
+echo While BOB_HOME was resolved to %BOB_HOME%, BOB_LIB was not defined, and BOB_HOME\lib did not exist. Please check your installation.
 goto end
 
 :checkJava
