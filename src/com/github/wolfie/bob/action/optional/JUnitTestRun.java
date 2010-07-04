@@ -11,7 +11,7 @@ import com.github.wolfie.bob.Defaults;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.Compilation;
-import com.github.wolfie.bob.exception.ProcessingException;
+import com.github.wolfie.bob.exception.ProcessingError;
 
 public class JUnitTestRun implements Action {
   
@@ -19,7 +19,7 @@ public class JUnitTestRun implements Action {
   
   private final LinkedHashSet<Class<?>> classesToTest = new LinkedHashSet<Class<?>>();
   private Compilation testsFromCompilation = null;
-  private Compilation targetsFrom;
+  private Compilation targetsFrom = null;
   
   public JUnitTestRun testsFrom(final Compilation compilation) {
     testsFromCompilation = compilation;
@@ -59,11 +59,11 @@ public class JUnitTestRun implements Action {
           .run();
     } catch (final Exception e) {
       e.printStackTrace();
-      throw new ProcessingException(e);
+      throw new ProcessingError(e);
     }
     
     if (exitCode != 0) {
-      throw new ProcessingException("thread didn't exit properly");
+      throw new ProcessingError("thread didn't exit properly");
     }
   }
   
@@ -83,12 +83,10 @@ public class JUnitTestRun implements Action {
     if (testsFromCompilation == null) {
       try {
         testsFromCompilation = new Compilation()
-            .use(targetsFrom)
-            .useJarsAt("dist/lib/")
             .from(Defaults.DEFAULT_TEST_SRC_PATH)
             .to(Util.getTemporaryDirectory().getAbsolutePath());
       } catch (final IOException e) {
-        throw new ProcessingException(e);
+        throw new ProcessingError(e);
       }
     }
   }

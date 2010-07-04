@@ -5,7 +5,11 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 
-public class BootstrapInfo implements Serializable {
+/**
+ * This class contains all necessary information that will be passed from the
+ * first run of Bob to the rebooted Bob.
+ */
+class BootstrapInfo implements Serializable {
   
   private static final long serialVersionUID = -6340121775075760399L;
   

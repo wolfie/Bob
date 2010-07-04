@@ -2,6 +2,7 @@ import com.github.wolfie.bob.BobBuild;
 import com.github.wolfie.bob.ProjectDescription;
 import com.github.wolfie.bob.UtilTest;
 import com.github.wolfie.bob.action.Action;
+import com.github.wolfie.bob.action.Jar;
 import com.github.wolfie.bob.action.optional.JUnitTestRun;
 import com.github.wolfie.bob.annotation.Target;
 
@@ -24,11 +25,15 @@ public class Default extends BobBuild {
      */
   }
   
-  @Target(defaultTarget = true)
+  @Target
   public Action test() {
     return new JUnitTestRun().run(UtilTest.class);
   }
   
-  public void foo() {
+  @Target(defaultTarget = true)
+  public Action build() {
+    return new Jar()
+        .withSources()
+        .to("artifacts/bob.jar");
   }
 }

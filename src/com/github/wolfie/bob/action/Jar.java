@@ -23,7 +23,7 @@ import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
 import com.github.wolfie.bob.exception.NoSourcesToIncludeException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
-import com.github.wolfie.bob.exception.ProcessingException;
+import com.github.wolfie.bob.exception.ProcessingError;
 
 /**
  * <p>
@@ -148,7 +148,7 @@ public class Jar implements Action {
       
       System.out.println("Wrote " + destination.getAbsolutePath());
     } catch (final Exception e) {
-      throw new ProcessingException(e);
+      throw new ProcessingError(e);
     }
   }
   
@@ -285,18 +285,19 @@ public class Jar implements Action {
   private static File getClassesDirectoryFromCompilation(
       final Compilation compilation) {
     try {
-      compilation.to(Util.getTemporaryDirectory().getAbsolutePath());
+      final File temporaryDirectory = Util.getTemporaryDirectory();
+      compilation.to(temporaryDirectory.getAbsolutePath());
       compilation.process();
       
-      final File directory = compilation.getDestinationDirectory();
-      return Util.checkedDirectory(directory);
+      return Util.checkedDirectory(temporaryDirectory);
     } catch (final IOException e) {
-      throw new ProcessingException("Could not create a temporary directory.", e);
+      throw new ProcessingError("Could not create a temporary directory.", e);
     }
   }
   
   /**
-   * See <a href="http://stackoverflow.com/questions/1281229/how-to-use-jaroutputstream-to-create-a-jar-file"
+   * See <a href=
+   * "http://stackoverflow.com/questions/1281229/how-to-use-jaroutputstream-to-create-a-jar-file"
    * >Stack Overflow</a> for explanation on method.
    * 
    * @param baseDir

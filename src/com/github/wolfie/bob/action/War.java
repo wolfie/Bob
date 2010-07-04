@@ -61,10 +61,6 @@ public class War extends Jar {
     super.archiveClassSourceDestination = "WEB-INF/classes/";
     
     super.setDefaults();
-    
-    if (super.fromCompilation != null) {
-      super.fromCompilation.useJarsAt(Defaults.WAR_LIBS_PATH);
-    }
   }
   
   @Override

@@ -1,9 +1,12 @@
 package com.github.wolfie.bob;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -104,7 +107,7 @@ public class Util {
    * @return All {@link File}s that match <tt>predicate</tt> and are in, or
    *         under, <tt>baseDir</tt>.
    */
-  public static Collection<File> getFilesRecursively(final File baseDir,
+  public static Set<File> getFilesRecursively(final File baseDir,
       final FilePredicate predicate) {
     final Set<File> files = new HashSet<File>();
     
@@ -122,7 +125,7 @@ public class Util {
     return files;
   }
   
-  public static Collection<File> getFilesRecursively(final File baseDir) {
+  public static Set<File> getFilesRecursively(final File baseDir) {
     return getFilesRecursively(baseDir, null);
   }
   
@@ -348,5 +351,66 @@ public class Util {
   
   public static boolean systemIsWindows() {
     return System.getProperty("os.name").startsWith("Windows");
+  }
+  
+  public static void copy(final Iterable<File> classFiles, final File baseDir,
+      final File destinationDirectory) throws IOException {
+    
+    if (!destinationDirectory.isDirectory()) {
+      throw new IOException("destination is not a directory: "
+          + destinationDirectory.getAbsolutePath());
+    }
+    
+    if (!destinationDirectory.canWrite()) {
+      throw new IOException("destination cannot be written: "
+          + destinationDirectory.getAbsolutePath());
+    }
+    
+    for (final File file : classFiles) {
+      final String relativeFileName = Util.relativeFileName(baseDir, file);
+      final File destination = new File(destinationDirectory, relativeFileName);
+      copy(file, destination);
+    }
+  }
+  
+  private static void copy(final File source, final File destination)
+      throws IOException {
+    
+    System.out.println(String.format("Copying: %s -> %s", source, destination));
+    
+    Util.makeParentDirs(destination);
+    final FileChannel srcChannel = new FileInputStream(source).getChannel();
+    final FileChannel destChannel = new FileOutputStream(destination)
+        .getChannel();
+    
+    try {
+      destChannel.transferFrom(srcChannel, 0, srcChannel.size());
+    } finally {
+      try {
+        srcChannel.close();
+      } finally {
+        destChannel.close();
+      }
+    }
+  }
+  
+  public static void makeParentDirs(final File file) throws IOException {
+    final File parentFile = file.getParentFile();
+    
+    if (parentFile.exists() && parentFile.isDirectory()) {
+      return;
+    }
+
+    else if (parentFile.exists() && !parentFile.isDirectory()) {
+      throw new IOException(parentFile + " exists, but is not a directory");
+    }
+
+    else {
+      final boolean success = parentFile.mkdirs();
+      if (!success) {
+        throw new IOException(parentFile.getAbsolutePath()
+            + " directory structure could not be created");
+      }
+    }
   }
 }

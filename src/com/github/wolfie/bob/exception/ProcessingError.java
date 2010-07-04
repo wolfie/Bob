@@ -7,19 +7,18 @@ import com.github.wolfie.bob.action.Action;
  * 
  * @author Henrik Paul
  */
-public class ProcessingException extends BobRuntimeException {
+public class ProcessingError extends Error {
   private static final long serialVersionUID = 3823064523285817093L;
   
-  public ProcessingException(final Throwable e) {
+  public ProcessingError(final Throwable e) {
     super(e);
   }
   
-  public ProcessingException(final String msg) {
+  public ProcessingError(final String msg) {
     super(msg);
   }
   
-  public ProcessingException(final String message, final Throwable cause) {
+  public ProcessingError(final String message, final Throwable cause) {
     super(message, cause);
-    // TODO Auto-generated constructor stub
   }
 }

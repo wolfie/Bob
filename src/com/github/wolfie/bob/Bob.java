@@ -11,6 +11,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,9 +19,11 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
+import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -29,8 +32,6 @@ import javax.tools.ToolProvider;
 
 import com.github.wolfie.bob.CompilationCache.Builder;
 import com.github.wolfie.bob.action.Action;
-import com.github.wolfie.bob.action.Compilation;
-import com.github.wolfie.bob.action.Compilation.BobDiagnosticListener;
 import com.github.wolfie.bob.action.optional.JavaLauncher;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BuildTargetException;
@@ -49,6 +50,25 @@ import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
  * @since 1.0.0
  */
 public final class Bob {
+  
+  private static class BobDiagnosticListener implements
+      DiagnosticListener<JavaFileObject> {
+    private final List<Diagnostic<? extends JavaFileObject>> diagnostics = new ArrayList<Diagnostic<? extends JavaFileObject>>();
+    
+    @Override
+    public void report(final Diagnostic<? extends JavaFileObject> diagnostic) {
+      diagnostics.add(diagnostic);
+    }
+    
+    public boolean hasProblems() {
+      return !diagnostics.isEmpty();
+    }
+    
+    public List<Diagnostic<? extends JavaFileObject>> getProblems() {
+      return Collections.unmodifiableList(diagnostics);
+    }
+  }
+  
   public static final int VERSION_MAJOR = 0;
   public static final int VERSION_MINOR = 0;
   public static final int VERSION_MAINTENANCE = 0;
@@ -132,11 +152,9 @@ public final class Bob {
   }
   
   private static void run() {
-    
-    System.out.println(":D");
-    
     final BootstrapInfo info = getBootstrapInfo();
-    Compilation.setCache(info.getCache());
+    
+    CompilationCache.set(info.getCache());
     
     final File buildFile = getBuildFile();
     final File buildClassFile = compile(buildFile, info.getClasspath());
@@ -224,12 +242,6 @@ public final class Bob {
       }
       
       System.out.println("Rebooting Bob with " + bobRebooter);
-      try {
-        Thread.sleep(10000);
-      } catch (final InterruptedException e) {
-        // TODO Auto-generated catch block
-        e.printStackTrace();
-      }
       System.exit(bobRebooter.run());
     } catch (final IOException e) {
       e.printStackTrace();
@@ -288,25 +300,26 @@ public final class Bob {
     final File classOutputDir = Util.getTemporaryDirectory();
     classPath.add(classOutputDir);
     
-    final Builder cacheBuilder = new CompilationCache.Builder();
+    final Builder cacheBuilder = new CompilationCache.Builder(classOutputDir);
     
     for (final String sourcePath : desc.getSourcePaths()) {
-      final Touple<Iterable<File>, Iterable<URI>> touple = compile(sourcePath,
+      final Touple<Set<File>, Set<URI>> touple = compile(sourcePath,
           classPath, classOutputDir);
       
       cacheBuilder.add(sourcePath, touple.getFirst(), touple.getSecond());
     }
     
-    final BootstrapInfo info = new BootstrapInfo(cacheBuilder.build(),
+    final BootstrapInfo info = new BootstrapInfo(cacheBuilder.commit(),
         classPath);
     return info;
   }
   
-  private static Touple<Iterable<File>, Iterable<URI>> compile(
+  private static Touple<Set<File>, Set<URI>> compile(
       final String sourcePath,
       final Iterable<File> classPath, final File classOutputDir)
       throws IOException {
-    final Iterable<File> sourceFiles = Util.getFilesRecursively(new File(
+    
+    final Set<File> sourceFiles = Util.getFilesRecursively(new File(
         sourcePath), Util.JAVA_SOURCE_FILE);
     
     final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -330,8 +343,8 @@ public final class Bob {
       System.exit(1);
       return Touple.ofNull();
     } else {
-      return Touple.of(sourceFiles, (Iterable<URI>) fileManager
-          .getClassFileURIs());
+      return Touple.of(sourceFiles, fileManager
+          .getJavaFileURIs());
     }
   }
   
@@ -488,7 +501,10 @@ public final class Bob {
       final Iterable<? extends JavaFileObject> javaFiles = fileManager
           .getJavaFileObjects(buildFile);
       
-      compiler.getTask(null, fileManager, diagnosticListener, null, null,
+      // add debug info
+      final List<String> options = Arrays.asList("-g");
+      
+      compiler.getTask(null, fileManager, diagnosticListener, options, null,
           javaFiles).call();
       
       final List<Diagnostic<? extends JavaFileObject>> diagnostics = diagnosticListener

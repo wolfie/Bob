@@ -3,6 +3,8 @@ package com.github.wolfie.bob;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -12,9 +14,11 @@ import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardJavaFileManager;
 
+import com.github.wolfie.bob.exception.BobRuntimeException;
+
 public class BobWrappedJavaFileManager implements StandardJavaFileManager {
   private final StandardJavaFileManager wrappedManager;
-  private final Set<URI> classFileURIs = new HashSet<URI>();
+  private final HashSet<URI> classFileURIs = new HashSet<URI>();
   
   public BobWrappedJavaFileManager(final StandardJavaFileManager wrappedManager) {
     this.wrappedManager = wrappedManager;
@@ -109,9 +113,26 @@ public class BobWrappedJavaFileManager implements StandardJavaFileManager {
         .getJavaFileForOutput(location, className, kind,
             sibling);
     if (kind.equals(Kind.CLASS)) {
-      getClassFileURIs().add(javaFileForOutput.toUri());
+      classFileURIs.add(getFixedUri(javaFileForOutput.toUri()));
     }
     return javaFileForOutput;
+  }
+  
+  /**
+   * {@link com.sun.tools.javac.util.DefaultFileManager.RegularFileObject}
+   * returns an illegal URI, so we need to fix it.
+   */
+  private URI getFixedUri(final URI uri) {
+    final String uriString = uri.toString();
+    if (!uriString.startsWith("file://")) {
+      try {
+        return new URI("file://" + uriString);
+      } catch (final URISyntaxException e) {
+        throw new BobRuntimeException("This really shouldn't happen.", e);
+      }
+    } else {
+      return uri;
+    }
   }
   
   @Override
@@ -138,8 +159,8 @@ public class BobWrappedJavaFileManager implements StandardJavaFileManager {
   public void close() throws IOException {
     wrappedManager.close();
   }
-
-  public Set<URI> getClassFileURIs() {
-    return classFileURIs;
+  
+  public Set<URI> getJavaFileURIs() {
+    return Collections.unmodifiableSet(classFileURIs);
   }
 }

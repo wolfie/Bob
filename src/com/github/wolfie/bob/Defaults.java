@@ -14,6 +14,10 @@ public final class Defaults {
   
   public static final String ARTIFACTS_PATH = "artifacts";
   
+  // compilation
+  
+  public static final String SOURCE_PATH = "src";
+  
   // jars
   
   public static final String JAR_MANIFEST_PATH = "META-INF/MANIFEST.MF";
