@@ -1,3 +1,2 @@
 Manifest-Version: 1.0
 Main-Class: com.github.wolfie.bob.Bob
-Class-Path: junit.jar
