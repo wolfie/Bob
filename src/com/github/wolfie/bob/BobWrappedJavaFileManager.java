@@ -3,7 +3,6 @@ package com.github.wolfie.bob;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -13,8 +12,6 @@ import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardJavaFileManager;
-
-import com.github.wolfie.bob.exception.BobRuntimeException;
 
 public class BobWrappedJavaFileManager implements StandardJavaFileManager {
   private final StandardJavaFileManager wrappedManager;
@@ -113,7 +110,7 @@ public class BobWrappedJavaFileManager implements StandardJavaFileManager {
         .getJavaFileForOutput(location, className, kind,
             sibling);
     if (kind.equals(Kind.CLASS)) {
-      classFileURIs.add(getFixedUri(javaFileForOutput.toUri()));
+      classFileURIs.add(getFixedUri(javaFileForOutput));
     }
     return javaFileForOutput;
   }
@@ -121,17 +118,23 @@ public class BobWrappedJavaFileManager implements StandardJavaFileManager {
   /**
    * {@link com.sun.tools.javac.util.DefaultFileManager.RegularFileObject}
    * returns an illegal URI, so we need to fix it.
+   * <p/>
+   * See bug <a
+   * href="http://bugs.sun.com/view_bug.do?bug_id=6419926">#6419926</a>
    */
-  private URI getFixedUri(final URI uri) {
-    final String uriString = uri.toString();
-    if (!uriString.startsWith("file://")) {
-      try {
-        return new URI("file://" + uriString);
-      } catch (final URISyntaxException e) {
-        throw new BobRuntimeException("This really shouldn't happen.", e);
-      }
+  private URI getFixedUri(final JavaFileObject javaFileForOutput) {
+    
+    final URI originalUri = javaFileForOutput.toUri();
+    final String originalUriAsString = originalUri.toString();
+    
+    // as a String so that the class doesn't have to be in classpath
+    final String offendingClassName = "com.sun.tools.javac.util.DefaultFileManager$RegularFileObject";
+    
+    if (javaFileForOutput.getClass().getName().equals(offendingClassName)
+        && !originalUriAsString.startsWith("file:")) {
+      return new File(originalUriAsString).toURI();
     } else {
-      return uri;
+      return originalUri;
     }
   }
   
