@@ -23,6 +23,7 @@
 			destdir="${tempDir}" 
 			srcdir="${srcDir}"
 			classpath="dist/lib/junit.jar"
+			includeantruntime="no"
 		/>
 	</target>
 	
