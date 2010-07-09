@@ -221,7 +221,7 @@ public final class Bob {
   private static void bootstrap() {
     final File buildFile = getBuildFile();
     
-    final ProjectDescription desc = BootstrapUtil
+    final ProjectDescription desc = BuildFileUtil
           .getProjectDescription(buildFile);
     
     try {
@@ -314,6 +314,15 @@ public final class Bob {
     return info;
   }
   
+  /**
+   * 
+   * @param sourcePath
+   * @param classPath
+   * @param classOutputDir
+   * @return A {@link Touple} of source files to their respective class file
+   *         URIs
+   * @throws IOException
+   */
   private static Touple<Set<File>, Set<URI>> compile(
       final String sourcePath,
       final Iterable<File> classPath, final File classOutputDir)
@@ -528,6 +537,13 @@ public final class Bob {
     
   }
   
+  /**
+   * Get the {@link File} object that represents the build file to use.
+   * 
+   * @throws NoBuildFileFoundException
+   *           if no suitable build file is found, or a given build file doesn't
+   *           exist.
+   */
   private static File getBuildFile() throws NoBuildFileFoundException {
     final File file = new File(buildfile);
     if (file.canRead()) {
@@ -639,28 +655,11 @@ public final class Bob {
   private static void listTargets() throws MalformedURLException,
       ClassNotFoundException {
     final File buildFile = getBuildFile();
-    final File buildClassFile = compile(buildFile);
-    final URLClassLoader urlClassLoader = new URLClassLoader(
-        new URL[] { buildClassFile.toURI().toURL() });
-    final Class<?> buildClass = urlClassLoader.loadClass(getBuildClassName());
     
-    System.out.println("Valid build targets found in build file "
-        + buildFile.getAbsolutePath() + ": \n");
+    final List<String> targetNames = BuildFileParser.getTargets(buildFile);
     
-    final Method defaultTarget = getDefaultBuildTarget(buildClass);
-    
-    for (final Method method : buildClass.getMethods()) {
-      try {
-        Util.verifyBuildTargetMethod(method);
-        
-        if (defaultTarget.equals(method)) {
-          System.out.println(method.getName() + " [default]");
-        } else {
-          System.out.println(method.getName());
-        }
-      } catch (final BuildTargetException e) {
-        // just ignore...
-      }
+    for (final String targetName : targetNames) {
+      System.out.println(targetName);
     }
   }
   

@@ -1,8 +1,10 @@
 package com.github.wolfie.bob;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -412,5 +414,18 @@ public class Util {
             + " directory structure could not be created");
       }
     }
+  }
+  
+  static String getFileAsString(final File file) throws IOException {
+    final StringBuilder fileData = new StringBuilder(1000);
+    final BufferedReader reader = new BufferedReader(
+          new FileReader(file));
+    final char[] buf = new char[1024];
+    int numRead = 0;
+    while ((numRead = reader.read(buf)) != -1) {
+      fileData.append(buf, 0, numRead);
+    }
+    reader.close();
+    return fileData.toString();
   }
 }

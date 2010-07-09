@@ -1,13 +1,18 @@
 package com.github.wolfie.bob;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,10 +23,90 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-public class BootstrapUtil {
+import com.github.wolfie.bob.exception.BobRuntimeException;
+
+public class BuildFileUtil {
+  private static final String DEFAULT_TARGET_SYMBOL = "(default)";
+  
+  private static final class TargetInfo {
+    private final String name;
+    private final boolean defaultTarget;
+    
+    public static final Comparator<TargetInfo> BY_NAME = new Comparator<BuildFileUtil.TargetInfo>() {
+      @Override
+      public int compare(final TargetInfo o1, final TargetInfo o2) {
+        return o1.name.compareTo(o2.name);
+      }
+    };
+    
+    public TargetInfo(final String name, final boolean defaultTarget) {
+      this.name = name;
+      this.defaultTarget = defaultTarget;
+    }
+    
+    public String getName() {
+      return name;
+    }
+    
+    public boolean isDefaultTarget() {
+      return defaultTarget;
+    }
+    
+    @Override
+    public String toString() {
+      return name;
+    }
+    
+    public static void print(final Collection<TargetInfo> targetInfo,
+        final PrintStream stream) {
+      final List<TargetInfo> myTargetInfo = new ArrayList<TargetInfo>(
+          targetInfo);
+      
+      TargetInfo defaultName = null;
+      TargetInfo defaultTarget = null;
+      
+      for (final TargetInfo aTargetInfo : targetInfo) {
+        if (aTargetInfo.isDefaultTarget()) {
+          if (defaultTarget != null) {
+            throw new IllegalStateException(
+                "Noticed at least two defaultTarget-annotated targets: "
+                    + defaultTarget + " and " + aTargetInfo);
+          } else {
+            defaultTarget = aTargetInfo;
+          }
+        } else if (aTargetInfo.getName().equals(
+            Defaults.DEFAULT_BUILD_METHOD_NAME)) {
+          if (defaultName != null) {
+            throw new IllegalStateException(
+                "Noticed at least two methods named "
+                    + Defaults.DEFAULT_BUILD_METHOD_NAME);
+          } else {
+            defaultName = aTargetInfo;
+          }
+        }
+        
+        myTargetInfo.add(aTargetInfo);
+      }
+      
+      Collections.sort(myTargetInfo, TargetInfo.BY_NAME);
+      
+      if (defaultTarget != null) {
+        stream.println(defaultTarget + " " + DEFAULT_TARGET_SYMBOL);
+        myTargetInfo.remove(defaultTarget);
+      } else if (defaultName != null) {
+        stream.println(defaultName + " " + DEFAULT_TARGET_SYMBOL);
+        myTargetInfo.remove(defaultName);
+      }
+      
+      for (final TargetInfo aTargetInfo : myTargetInfo) {
+        stream.println(aTargetInfo);
+      }
+    }
+  }
+  
   private static final String DESCRIBE_PROJECT_METHOD_NAME = "describeProject";
   
-  private BootstrapUtil() {
+  private BuildFileUtil() {
   }
   
   private static File getDescriptionMethodClassFile(final File buildFile)
@@ -93,7 +178,7 @@ public class BootstrapUtil {
   private static String getDescriptionMethod(final File file)
       throws IOException {
     
-    final String code = readFileAsString(file);
+    final String code = Util.getFileAsString(file);
     final String method = getMethodCode(code, DESCRIBE_PROJECT_METHOD_NAME);
     
     return method;
@@ -211,20 +296,6 @@ public class BootstrapUtil {
     return builder.toString();
   }
   
-  private static String readFileAsString(final File file)
-      throws IOException {
-    final StringBuilder fileData = new StringBuilder(1000);
-    final BufferedReader reader = new BufferedReader(
-          new FileReader(file));
-    final char[] buf = new char[1024];
-    int numRead = 0;
-    while ((numRead = reader.read(buf)) != -1) {
-      fileData.append(buf, 0, numRead);
-    }
-    reader.close();
-    return fileData.toString();
-  }
-  
   public static ProjectDescription getProjectDescription(final File buildFile) {
     try {
       final File descClassFile = getDescriptionMethodClassFile(buildFile);
@@ -240,21 +311,30 @@ public class BootstrapUtil {
       return description;
       
     } catch (final IOException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final SecurityException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final NoSuchMethodException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final InstantiationException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final IllegalArgumentException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final InvocationTargetException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     }
+  }
+  
+  public static Set<TargetInfo> getTargetNames(final File buildFile)
+      throws IOException {
+    
+    final String code = Util.getFileAsString(buildFile);
+    
+    final Set<TargetInfo> targets = new HashSet<TargetInfo>();
+    return targets;
   }
 }
