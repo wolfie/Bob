@@ -15,14 +15,6 @@ public class Default extends BobBuild {
         .jarFile("dist/lib/junit.jar")
         .sourcePath("src")
         .sourcePath("test");
-    
-    // test comment
-    
-    /* test comment */
-
-    /*
-     * test comment
-     */
   }
   
   @Target
