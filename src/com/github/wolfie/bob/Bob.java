@@ -30,6 +30,7 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.wolfie.bob.BuildFileUtil.TargetInfo;
 import com.github.wolfie.bob.CompilationCache.Builder;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.optional.JavaLauncher;
@@ -652,14 +653,25 @@ public final class Bob {
         + Defaults.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
   }
   
-  private static void listTargets() throws MalformedURLException,
-      ClassNotFoundException {
+  private static void listTargets() {
     final File buildFile = getBuildFile();
     
-    final List<String> targetNames = BuildFileParser.getTargets(buildFile);
-    
-    for (final String targetName : targetNames) {
-      System.out.println(targetName);
+    try {
+      final Set<TargetInfo> targetInfos = BuildFileUtil
+          .getTargetInfos(buildFile);
+      
+      if (!targetInfos.isEmpty()) {
+        System.out.println("Build file " + buildFile.getPath()
+            + " contains the following build targets:");
+        TargetInfo.print(targetInfos, System.out);
+      } else {
+        System.out.println("Build file " + buildFile.getPath()
+            + " contains no build targets.");
+      }
+    } catch (final IOException e) {
+      System.err.println("Cannot list target info, " +
+              "because of the following exception:");
+      e.printStackTrace();
     }
   }
   
