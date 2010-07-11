@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 
@@ -565,8 +566,6 @@ public final class Bob {
         break;
       }
       
-      // LOGGING
-      
       if (Util.isAnyOf(arg, "-v", "--verbose")) {
         // TODO
       }
@@ -588,11 +587,20 @@ public final class Bob {
         listTargets = true;
       }
 
-      // END LOGGING
-      
       else if (Util.isAnyOf(arg, "-h", "--help")) {
         showHelp = true;
         skipBuilding = true;
+      }
+
+      else if (Util.isAnyOf(arg, "-f", "--build-file")) {
+        try {
+          buildfile = argQueue.remove();
+        } catch (final NoSuchElementException e) {
+          showHelp = true;
+          skipBuilding = true;
+          throw new UnrecognizedArgumentException(arg
+              + " was given without a proper argument");
+        }
       }
 
       else {
@@ -602,13 +610,12 @@ public final class Bob {
       }
     }
     
-    if (!argQueue.isEmpty()) {
-      buildfile = argQueue.remove();
-      System.out.println("Using " + buildfile + " as the buildfile");
-    } else {
+    if (buildfile == null) {
       buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
-      System.out
-          .println("Using the default " + buildfile + " as the buildfile");
+      System.out.println("Using the default "
+          + buildfile + " as the buildfile");
+    } else {
+      System.out.println("Using " + buildfile + " as the buildfile");
     }
     
     if (!argQueue.isEmpty()) {
@@ -620,30 +627,28 @@ public final class Bob {
     if (!argQueue.isEmpty()) {
       showHelp = true;
       skipBuilding = true;
-      throw new UnexpectedArgumentAmountException(argQueue.size(), 2);
+      throw new UnexpectedArgumentAmountException(argQueue.size(), 1);
     }
   }
   
   private static void showHelp() {
-    System.out.println("Usage: bob [<options>] [<buildfile>] [<buildtarget>]");
+    System.out.println("Usage: bob [<options>] [<buildtarget>]");
     System.out.println();
     System.out.println("Options:");
-    System.out.println(" -v, --verbose          show additional build info");
-    System.out.println(" -vv, --more-verbose    show even more information");
-    System.out.println(" -s, --silent           suppress build info");
-    System.out.println(" -ss, --more-silent     suppress almost all info");
+    System.out.println("# -v, --verbose          show additional build info");
+    System.out.println("# -vv, --more-verbose    show even more information");
+    System.out.println("# -s, --silent           suppress build info");
+    System.out.println("# -ss, --more-silent     suppress almost all info");
     System.out.println(" -h, --help             show this help");
     System.out.println();
     System.out.println(" -l, --list-targets     ");
     System.out.println(Util.wordWrap("        list targets in a buildfile. " +
                     "Any defined buildtarget will be ignored."));
     System.out.println();
-    System.out.println("Buildfile:");
-    System.out.println(Util.wordWrap("  The buildfile is where all "
-        + "the build targets are located at. If this parameter "
-        + "is omitted, a default value of \""
-        + Defaults.DEFAULT_BUILD_SRC_DIR + File.separator
-        + Defaults.DEFAULT_BUILD_SRC_FILE + "\" will " + "be used."));
+    System.out.println(" -f, --build-file <file>");
+    System.out.println(Util.wordWrap("        the given file will be " +
+                "used as the build file, instead of the default "
+                + Defaults.DEFAULT_BUILD_SRC_PATH));
     System.out.println();
     System.out.println("Buildtarget:");
     System.out.println(Util.wordWrap("  The buildtarget " + "is the method "
@@ -651,6 +656,7 @@ public final class Bob {
         + "you wish to be created. If this parameter is "
         + "omitted, a default value of \""
         + Defaults.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
+    System.out.println();
   }
   
   private static void listTargets() {
