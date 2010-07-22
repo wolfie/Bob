@@ -1,13 +1,19 @@
 package com.github.wolfie.bob;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,10 +24,92 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-public class BootstrapUtil {
+import com.github.wolfie.bob.annotation.Target;
+import com.github.wolfie.bob.exception.BobRuntimeException;
+
+public class BuildFileUtil {
+  private static final String METHOD_RETURN_TYPE_REGEXP = "\\p{Alnum}+\\s+";
+  private static final String METHOD_MODIFIERS_REGEXP = "(?:(?:private|public|protected|static|final|abstract)\\s+)*";
+  private static final String DEFAULT_TARGET_SYMBOL = "(default)";
+  
+  public static final class TargetInfo {
+    private final String name;
+    private final boolean defaultTarget;
+    
+    public static final Comparator<TargetInfo> BY_NAME = new Comparator<BuildFileUtil.TargetInfo>() {
+      @Override
+      public int compare(final TargetInfo o1, final TargetInfo o2) {
+        return o1.name.compareTo(o2.name);
+      }
+    };
+    
+    private TargetInfo(final String name, final boolean defaultTarget) {
+      this.name = name;
+      this.defaultTarget = defaultTarget;
+    }
+    
+    public String getName() {
+      return name;
+    }
+    
+    public boolean isDefaultTarget() {
+      return defaultTarget;
+    }
+    
+    @Override
+    public String toString() {
+      return name;
+    }
+    
+    public static void print(final Collection<TargetInfo> targetInfo,
+        final PrintStream stream) {
+      final List<TargetInfo> myTargetInfo = new ArrayList<TargetInfo>();
+      
+      TargetInfo defaultName = null;
+      TargetInfo defaultTarget = null;
+      
+      for (final TargetInfo aTargetInfo : targetInfo) {
+        if (aTargetInfo.isDefaultTarget()) {
+          if (defaultTarget != null) {
+            throw new IllegalStateException(
+                "Noticed at least two defaultTarget-annotated targets: "
+                    + defaultTarget + " and " + aTargetInfo);
+          } else {
+            defaultTarget = aTargetInfo;
+          }
+        } else if (aTargetInfo.getName().equals(
+            Defaults.DEFAULT_BUILD_METHOD_NAME)) {
+          if (defaultName != null) {
+            throw new IllegalStateException(
+                "Noticed at least two methods named "
+                    + Defaults.DEFAULT_BUILD_METHOD_NAME);
+          } else {
+            defaultName = aTargetInfo;
+          }
+        }
+        
+        myTargetInfo.add(aTargetInfo);
+      }
+      
+      Collections.sort(myTargetInfo, TargetInfo.BY_NAME);
+      
+      if (defaultTarget != null) {
+        stream.println(defaultTarget + " " + DEFAULT_TARGET_SYMBOL);
+        myTargetInfo.remove(defaultTarget);
+      } else if (defaultName != null) {
+        stream.println(defaultName + " " + DEFAULT_TARGET_SYMBOL);
+        myTargetInfo.remove(defaultName);
+      }
+      
+      for (final TargetInfo aTargetInfo : myTargetInfo) {
+        stream.println(aTargetInfo);
+      }
+    }
+  }
+  
   private static final String DESCRIBE_PROJECT_METHOD_NAME = "describeProject";
   
-  private BootstrapUtil() {
+  private BuildFileUtil() {
   }
   
   private static File getDescriptionMethodClassFile(final File buildFile)
@@ -93,7 +181,7 @@ public class BootstrapUtil {
   private static String getDescriptionMethod(final File file)
       throws IOException {
     
-    final String code = readFileAsString(file);
+    final String code = Util.getFileAsString(file);
     final String method = getMethodCode(code, DESCRIBE_PROJECT_METHOD_NAME);
     
     return method;
@@ -104,13 +192,11 @@ public class BootstrapUtil {
     
     code = removeComments(code);
     
-    final String modifiers = "(?:(?:private|public|protected|static|final|abstract)\\s+)*";
-    final String returnType = "\\p{Alnum}+\\s+";
     final String escapedMethodName = Pattern.quote(methodName);
     final String param = getParamsRegex(params);
     
-    final String regex = modifiers + returnType + escapedMethodName
-        + "\\(\\s*" + param + "\\)\\s*\\{";
+    final String regex = METHOD_MODIFIERS_REGEXP + METHOD_RETURN_TYPE_REGEXP
+        + escapedMethodName + "\\(\\s*" + param + "\\)\\s*\\{";
     final Matcher matcher = Pattern.compile(regex, Pattern.MULTILINE).matcher(
         code);
     
@@ -165,6 +251,13 @@ public class BootstrapUtil {
     return builder.toString();
   }
   
+  /**
+   * 
+   * @param code
+   * @param methodBodyStart
+   *          the index of the character after the first '{'
+   * @return
+   */
   private static String getMethodBody(final String code,
       final int methodBodyStart) {
     
@@ -211,20 +304,6 @@ public class BootstrapUtil {
     return builder.toString();
   }
   
-  private static String readFileAsString(final File file)
-      throws IOException {
-    final StringBuilder fileData = new StringBuilder(1000);
-    final BufferedReader reader = new BufferedReader(
-          new FileReader(file));
-    final char[] buf = new char[1024];
-    int numRead = 0;
-    while ((numRead = reader.read(buf)) != -1) {
-      fileData.append(buf, 0, numRead);
-    }
-    reader.close();
-    return fileData.toString();
-  }
-  
   public static ProjectDescription getProjectDescription(final File buildFile) {
     try {
       final File descClassFile = getDescriptionMethodClassFile(buildFile);
@@ -240,21 +319,101 @@ public class BootstrapUtil {
       return description;
       
     } catch (final IOException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final SecurityException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final NoSuchMethodException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final InstantiationException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final IllegalArgumentException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     } catch (final InvocationTargetException e) {
-      throw new RuntimeException(e);
+      throw new BobRuntimeException(e);
     }
+  }
+  
+  public static Set<TargetInfo> getTargetInfos(final File buildFile)
+      throws IOException {
+    
+    final Set<TargetInfo> targets = new HashSet<TargetInfo>();
+    
+    final String code = removeComments(Util.getFileAsString(buildFile));
+    int i = findBeginningOfNextTargetAnnotation(code, 0);
+    while (i < code.length()) {
+      final boolean annotationIsDefaultTarget = annotationIsDefaultTarget(code,
+          i);
+      
+      final String targetName = getNextMethodName(code, i);
+      targets.add(new TargetInfo(targetName, annotationIsDefaultTarget));
+      
+      i = code.indexOf(targetName, i) + targetName.length();
+      i = findBeginningOfNextTargetAnnotation(code, i);
+    }
+    
+    return targets;
+  }
+  
+  private static String getNextMethodName(final String code, final int i) {
+    final String subCode = code.substring(i);
+    
+    final String methodRegexp = METHOD_MODIFIERS_REGEXP
+        + METHOD_RETURN_TYPE_REGEXP + "(\\S+)\\s*\\([^)]*\\)";
+    final Pattern pattern = Pattern.compile(methodRegexp);
+    final Matcher matcher = pattern.matcher(subCode);
+    
+    if (matcher.find()) {
+      return matcher.group(1);
+    } else {
+      throw new IllegalStateException(
+          "Internal exception: No next method name was found from index " + i
+              + ", even though there should've been");
+    }
+  }
+  
+  private static boolean annotationIsDefaultTarget(final String code,
+      final int i) {
+    final Class<? extends Annotation> annotationClass = Target.class;
+    final String fqcn = "@" + annotationClass.getName();
+    final String simpleName = "@" + annotationClass.getSimpleName();
+    
+    String subCode = code.substring(i);
+    
+    // remove the annotation-part, we want to see what parameters are given.
+    if (subCode.startsWith(fqcn)) {
+      subCode = subCode.substring(fqcn.length());
+    } else if (subCode.startsWith(simpleName)) {
+      subCode = subCode.substring(simpleName.length());
+    } else {
+      throw new BobRuntimeException("Internal consistency error: no " + fqcn
+          + " annotation found, after all, at index " + i);
+    }
+    
+    final Pattern pattern = Pattern
+        .compile("^\\s*\\(\\s*defaultTarget\\s*\\=\\s*true\\s*\\)");
+    final Matcher matcher = pattern.matcher(subCode);
+    return matcher.find();
+  }
+  
+  private static int findBeginningOfNextTargetAnnotation(final String code,
+      final int i) {
+    final Class<? extends Annotation> annotationClass = Target.class;
+    final String fqcn = Pattern.quote("@" + annotationClass.getName());
+    final String simpleName = Pattern.quote("@"
+        + annotationClass.getSimpleName());
+    
+    final Pattern pattern = Pattern
+        .compile("(" + fqcn + "|" + simpleName + ")");
+    final Matcher matcher = pattern.matcher(code);
+    if (matcher.find(i)) {
+      return matcher.start();
+    } else {
+      return code.length();
+    }
+    
   }
 }

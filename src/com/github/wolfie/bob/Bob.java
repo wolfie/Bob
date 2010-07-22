@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 
@@ -30,6 +31,7 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.wolfie.bob.BuildFileUtil.TargetInfo;
 import com.github.wolfie.bob.CompilationCache.Builder;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.optional.JavaLauncher;
@@ -221,7 +223,7 @@ public final class Bob {
   private static void bootstrap() {
     final File buildFile = getBuildFile();
     
-    final ProjectDescription desc = BootstrapUtil
+    final ProjectDescription desc = BuildFileUtil
           .getProjectDescription(buildFile);
     
     try {
@@ -314,6 +316,15 @@ public final class Bob {
     return info;
   }
   
+  /**
+   * 
+   * @param sourcePath
+   * @param classPath
+   * @param classOutputDir
+   * @return A {@link Touple} of source files to their respective class file
+   *         URIs
+   * @throws IOException
+   */
   private static Touple<Set<File>, Set<URI>> compile(
       final String sourcePath,
       final Iterable<File> classPath, final File classOutputDir)
@@ -528,6 +539,13 @@ public final class Bob {
     
   }
   
+  /**
+   * Get the {@link File} object that represents the build file to use.
+   * 
+   * @throws NoBuildFileFoundException
+   *           if no suitable build file is found, or a given build file doesn't
+   *           exist.
+   */
   private static File getBuildFile() throws NoBuildFileFoundException {
     final File file = new File(buildfile);
     if (file.canRead()) {
@@ -547,8 +565,6 @@ public final class Bob {
       } else {
         break;
       }
-      
-      // LOGGING
       
       if (Util.isAnyOf(arg, "-v", "--verbose")) {
         // TODO
@@ -571,11 +587,20 @@ public final class Bob {
         listTargets = true;
       }
 
-      // END LOGGING
-      
       else if (Util.isAnyOf(arg, "-h", "--help")) {
         showHelp = true;
         skipBuilding = true;
+      }
+
+      else if (Util.isAnyOf(arg, "-f", "--build-file")) {
+        try {
+          buildfile = argQueue.remove();
+        } catch (final NoSuchElementException e) {
+          showHelp = true;
+          skipBuilding = true;
+          throw new UnrecognizedArgumentException(arg
+              + " was given without a proper argument");
+        }
       }
 
       else {
@@ -585,13 +610,12 @@ public final class Bob {
       }
     }
     
-    if (!argQueue.isEmpty()) {
-      buildfile = argQueue.remove();
-      System.out.println("Using " + buildfile + " as the buildfile");
-    } else {
+    if (buildfile == null) {
       buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
-      System.out
-          .println("Using the default " + buildfile + " as the buildfile");
+      System.out.println("Using the default "
+          + buildfile + " as the buildfile");
+    } else {
+      System.out.println("Using " + buildfile + " as the buildfile");
     }
     
     if (!argQueue.isEmpty()) {
@@ -603,30 +627,28 @@ public final class Bob {
     if (!argQueue.isEmpty()) {
       showHelp = true;
       skipBuilding = true;
-      throw new UnexpectedArgumentAmountException(argQueue.size(), 2);
+      throw new UnexpectedArgumentAmountException(argQueue.size(), 1);
     }
   }
   
   private static void showHelp() {
-    System.out.println("Usage: bob [<options>] [<buildfile>] [<buildtarget>]");
+    System.out.println("Usage: bob [<options>] [<buildtarget>]");
     System.out.println();
     System.out.println("Options:");
-    System.out.println(" -v, --verbose          show additional build info");
-    System.out.println(" -vv, --more-verbose    show even more information");
-    System.out.println(" -s, --silent           suppress build info");
-    System.out.println(" -ss, --more-silent     suppress almost all info");
+    System.out.println("# -v, --verbose          show additional build info");
+    System.out.println("# -vv, --more-verbose    show even more information");
+    System.out.println("# -s, --silent           suppress build info");
+    System.out.println("# -ss, --more-silent     suppress almost all info");
     System.out.println(" -h, --help             show this help");
     System.out.println();
     System.out.println(" -l, --list-targets     ");
     System.out.println(Util.wordWrap("        list targets in a buildfile. " +
                     "Any defined buildtarget will be ignored."));
     System.out.println();
-    System.out.println("Buildfile:");
-    System.out.println(Util.wordWrap("  The buildfile is where all "
-        + "the build targets are located at. If this parameter "
-        + "is omitted, a default value of \""
-        + Defaults.DEFAULT_BUILD_SRC_DIR + File.separator
-        + Defaults.DEFAULT_BUILD_SRC_FILE + "\" will " + "be used."));
+    System.out.println(" -f, --build-file <file>");
+    System.out.println(Util.wordWrap("        the given file will be " +
+                "used as the build file, instead of the default "
+                + Defaults.DEFAULT_BUILD_SRC_PATH));
     System.out.println();
     System.out.println("Buildtarget:");
     System.out.println(Util.wordWrap("  The buildtarget " + "is the method "
@@ -634,33 +656,28 @@ public final class Bob {
         + "you wish to be created. If this parameter is "
         + "omitted, a default value of \""
         + Defaults.DEFAULT_BUILD_METHOD_NAME + "\" will be used."));
+    System.out.println();
   }
   
-  private static void listTargets() throws MalformedURLException,
-      ClassNotFoundException {
+  private static void listTargets() {
     final File buildFile = getBuildFile();
-    final File buildClassFile = compile(buildFile);
-    final URLClassLoader urlClassLoader = new URLClassLoader(
-        new URL[] { buildClassFile.toURI().toURL() });
-    final Class<?> buildClass = urlClassLoader.loadClass(getBuildClassName());
     
-    System.out.println("Valid build targets found in build file "
-        + buildFile.getAbsolutePath() + ": \n");
-    
-    final Method defaultTarget = getDefaultBuildTarget(buildClass);
-    
-    for (final Method method : buildClass.getMethods()) {
-      try {
-        Util.verifyBuildTargetMethod(method);
-        
-        if (defaultTarget.equals(method)) {
-          System.out.println(method.getName() + " [default]");
-        } else {
-          System.out.println(method.getName());
-        }
-      } catch (final BuildTargetException e) {
-        // just ignore...
+    try {
+      final Set<TargetInfo> targetInfos = BuildFileUtil
+          .getTargetInfos(buildFile);
+      
+      if (!targetInfos.isEmpty()) {
+        System.out.println("Build file " + buildFile.getPath()
+            + " contains the following build targets:");
+        TargetInfo.print(targetInfos, System.out);
+      } else {
+        System.out.println("Build file " + buildFile.getPath()
+            + " contains no build targets.");
       }
+    } catch (final IOException e) {
+      System.err.println("Cannot list target info, " +
+              "because of the following exception:");
+      e.printStackTrace();
     }
   }
   
