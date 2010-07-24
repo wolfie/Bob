@@ -7,6 +7,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -78,6 +79,13 @@ public class JavaLauncher {
     return this;
   }
   
+  /**
+   * Add classpath entries that will be put as-is into the launched JVM's
+   * classpath, without any checks being made.
+   * <p/>
+   * Without good reason, you should use {@link #userProvidedClassPath(String)}
+   * instead.
+   */
   public JavaLauncher userProvidedForcedClassPath(final String classPath) {
     Util.checkNulls(classPath);
     userClassPathsForced.add(classPath);
@@ -334,5 +342,9 @@ public class JavaLauncher {
   @Override
   public String toString() {
     return Util.implode(" ", (Object[]) getCommands());
+  }
+  
+  public void addAppArgs(final String[] rawArgs) {
+    addAppArgs(Arrays.asList(rawArgs));
   }
 }

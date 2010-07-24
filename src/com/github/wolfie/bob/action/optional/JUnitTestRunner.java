@@ -54,7 +54,6 @@ class JUnitTestRunner {
     properties.setProperty(JUnitTestResultConstants.FAILEDTESTS,
         Util.implode(",", testHeaders));
     
-    System.out.println(resultsFile.getAbsolutePath());
     final FileWriter writer = new FileWriter(resultsFile);
     try {
       properties.store(writer, null);
@@ -92,7 +91,8 @@ class JUnitTestRunner {
   private static Class<?>[] getClassesToTestFromArgs(final String[] args)
       throws ClassNotFoundException {
     final List<Class<?>> classesToTest = new ArrayList<Class<?>>();
-    for (final String arg : args) {
+    for (int i = 1; i < args.length; i++) {
+      final String arg = args[i];
       classesToTest.add(Class.forName(arg));
     }
     

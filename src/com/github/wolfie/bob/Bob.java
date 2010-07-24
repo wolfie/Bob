@@ -96,6 +96,9 @@ public final class Bob {
    */
   private static String buildtarget = null;
   
+  /** The arguments given to the application as-is. */
+  private static String[] rawArgs;
+  
   static {
     if (VERSION_BUILD != null && !VERSION_BUILD.isEmpty()) {
       VERSION = String.format("%s.%s.%s-%s", VERSION_MAJOR, VERSION_MINOR,
@@ -170,9 +173,18 @@ public final class Bob {
     }
     
     final Method buildMethod = getBuildMethod(buildClass);
+    
+    System.out.println("Invoking " + buildMethod);
     final Action action = getAction(buildMethod, buildClass);
     
-    execute(action, buildClass, buildMethod);
+    if (action != null) {
+      System.out.println("Processing " + action);
+      action.process();
+      success = true;
+    } else {
+      throw new NullPointerException(String.format("%s.%s() returned null.",
+          buildClass.getName(), buildMethod.getName()));
+    }
   }
   
   private static Class<? extends BobBuild> getBuildClass(
@@ -237,6 +249,8 @@ public final class Bob {
       final String jvmArg = String.format("-D%s=%s", CACHE_SYSTEM_PROPERTY,
           serializedCache.getAbsolutePath());
       bobRebooter.addJvmArg(jvmArg);
+      
+      bobRebooter.addAppArgs(rawArgs);
       
       for (final File classpathFile : info.getClasspath()) {
         bobRebooter
@@ -389,17 +403,6 @@ public final class Bob {
     }
     
     return jarFiles;
-  }
-  
-  private static void execute(final Action result, final Class<?> buildClass,
-      final Method buildMethod) {
-    if (result != null) {
-      result.process();
-      success = true;
-    } else {
-      throw new NullPointerException(String.format("%s.%s() returned null.",
-          buildClass.getName(), buildMethod.getName()));
-    }
   }
   
   /**
@@ -556,6 +559,8 @@ public final class Bob {
   }
   
   private static void handleArgs(final String[] args) {
+    rawArgs = args;
+    
     final Queue<String> argQueue = new LinkedList<String>(Arrays.asList(args));
     
     while (!argQueue.isEmpty()) {

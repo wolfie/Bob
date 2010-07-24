@@ -87,11 +87,15 @@ public final class CompilationCache implements Serializable {
   public Set<File> getClassFiles(final String srcPath)
       throws NotCompiledException {
     
-    if (classFiles.containsKey(srcPath)) {
+    if (isSrcPathCompiled(srcPath)) {
       return convertToFiles(classFiles.get(srcPath));
     } else {
       throw new NotCompiledException(srcPath);
     }
+  }
+  
+  public boolean isSrcPathCompiled(final String srcPath) {
+    return classFiles.containsKey(srcPath);
   }
   
   private static Set<File> convertToFiles(final Set<URI> set) {
@@ -103,6 +107,11 @@ public final class CompilationCache implements Serializable {
     return files;
   }
   
+  /**
+   * Get the base directory where all the compiled classes are found from.
+   * <p/>
+   * With a good likelihood, you shouldn't use this method.
+   */
   public File getBaseDirForClasses() {
     return baseDirForClasses;
   }

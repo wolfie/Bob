@@ -52,7 +52,7 @@ public class Compilation implements Action {
     return this;
   }
   
-  private File getDestinationDir() {
+  File getDestinationDir() {
     final File destination = new File(toPath);
     
     if (!destination.exists()) {

@@ -11,6 +11,7 @@ import com.github.wolfie.bob.Defaults;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.Compilation;
+import com.github.wolfie.bob.action._revealer;
 import com.github.wolfie.bob.exception.ProcessingError;
 
 public class JUnitTestRun implements Action {
@@ -18,16 +19,16 @@ public class JUnitTestRun implements Action {
   private static final String JUNITCORE_CLASSNAME = "org.junit.runner.JUnitCore";
   
   private final LinkedHashSet<Class<?>> classesToTest = new LinkedHashSet<Class<?>>();
-  private Compilation testsFromCompilation = null;
-  private Compilation targetsFrom = null;
+  private Compilation tests = null;
+  private Compilation targets = null;
   
   public JUnitTestRun testsFrom(final Compilation compilation) {
-    testsFromCompilation = compilation;
+    tests = compilation;
     return this;
   }
   
   public JUnitTestRun targetsFrom(final Compilation compilation) {
-    targetsFrom = compilation;
+    targets = compilation;
     return this;
   }
   
@@ -47,12 +48,17 @@ public class JUnitTestRun implements Action {
       return;
     }
     
-    testsFromCompilation.process();
+    tests.process();
     
     int exitCode = 0;
     try {
+      final String testsClassPath = _revealer.getDestinationDir(tests)
+          .getAbsolutePath();
+      
       exitCode = new JavaLauncher(JUnitTestRunner.class)
           .ensureClassCanBeLoaded(JUNITCORE_CLASSNAME)
+          .userProvidedForcedClassPath(
+              testsClassPath)
           .addAppArg(File.createTempFile("bobJUnitResults", ".properties")
                   .getAbsolutePath())
           .addAppArgs(getClassNamesToTest())
@@ -76,13 +82,13 @@ public class JUnitTestRun implements Action {
   }
   
   private void setDefaults() {
-    if (targetsFrom == null) {
-      targetsFrom = new Compilation();
+    if (targets == null) {
+      targets = new Compilation();
     }
     
-    if (testsFromCompilation == null) {
+    if (tests == null) {
       try {
-        testsFromCompilation = new Compilation()
+        tests = new Compilation()
             .from(Defaults.DEFAULT_TEST_SRC_PATH)
             .to(Util.getTemporaryDirectory().getAbsolutePath());
       } catch (final IOException e) {
