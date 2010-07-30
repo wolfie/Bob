@@ -308,14 +308,15 @@ public class Jar implements Action {
    *          The Jar's {@link JarOutputStream}.
    * @throws IOException
    */
-  protected static void add(String entryName, final File source,
+  protected static void add(final String entryName, final File source,
       final JarOutputStream target) throws IOException {
     
-    entryName = entryName.replace('\\', '/');
+    // Adjusted Jar entry name (for Windows-style paths)
+    final String adjustedEntryName = entryName.replace('\\', '/');
     
-    System.out.println("Compressing " + entryName);
+    System.out.println("Compressing " + adjustedEntryName);
     
-    final JarEntry entry = new JarEntry(entryName);
+    final JarEntry entry = new JarEntry(adjustedEntryName);
     entry.setTime(source.lastModified());
     target.putNextEntry(entry);
     
