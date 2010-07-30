@@ -492,10 +492,6 @@ public final class Bob {
         buildfile.lastIndexOf("."));
   }
   
-  private static File compile(final File buildFile) {
-    return compile(buildFile, new HashSet<File>());
-  }
-  
   private static File compile(final File buildFile,
       final Collection<File> classpath)
       throws CompilationFailedException {
