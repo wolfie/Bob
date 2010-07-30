@@ -17,7 +17,7 @@ public class _revealer {
   private _revealer() {
   }
   
-  /** @see {@link Compilation#getDestinationDir()} */
+  /** @see Compilation#getDestinationDir() */
   public static File getDestinationDir(final Compilation compilation) {
     return compilation.getDestinationDir();
   }
