@@ -1,9 +1,8 @@
 package com.github.wolfie.bob.exception;
 
-import com.github.wolfie.bob.action.Action;
-
 /**
- * An exception was thrown while trying to process an {@link Action}
+ * An exception was thrown while trying to process an
+ * {@link com.github.wolfie.bob.action.Action Action}
  * 
  * @author Henrik Paul
  */
