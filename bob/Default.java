@@ -10,11 +10,8 @@ public class Default extends BobBuild {
   
   @Override
   protected ProjectDescription describeProject() {
-    return new ProjectDescription()
-        .jarPath("lib")
-        .jarFile("dist/lib/junit.jar")
-        .sourcePath("src")
-        .sourcePath("test");
+    return ProjectDescription.getDefault()
+        .jarFile("dist/lib/junit.jar");
   }
   
   @Target

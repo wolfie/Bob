@@ -1,14 +1,31 @@
 package com.github.wolfie.bob;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class ProjectDescription {
+  
   private boolean finalized = false;
-  private final Set<String> sourcePaths = new LinkedHashSet<String>();
+  
+  private final LinkedHashSet<String> sourcePaths = new LinkedHashSet<String>();
+  private final Set<String> sourcePathsOptional = new HashSet<String>();
   private final Set<String> jarPaths = new HashSet<String>();
+  private final Set<String> jarPathsOptional = new HashSet<String>();
+  
   private final Set<String> jarFiles = new HashSet<String>();
+  
+  /**
+   * Get a freely modifiable instance of {@link ProjectDescription} that
+   * conforms to Bob's default project layout.
+   */
+  public static ProjectDescription getDefault() {
+    return new ProjectDescription()
+        .sourcePath(Defaults.SOURCE_PATH)
+        .sourcePathOptional(Defaults.DEFAULT_TEST_SRC_PATH)
+        .jarPathOptional(Defaults.LIBRARY_PATH);
+  }
   
   /**
    * <p>
@@ -30,6 +47,12 @@ public class ProjectDescription {
     checkFinalized();
     Util.checkNulls(sourcePath);
     sourcePaths.add(sourcePath);
+    return this;
+  }
+  
+  private ProjectDescription sourcePathOptional(final String sourcePath) {
+    sourcePath(sourcePath);
+    sourcePathsOptional.add(sourcePath);
     return this;
   }
   
@@ -56,6 +79,12 @@ public class ProjectDescription {
     return this;
   }
   
+  private ProjectDescription jarPathOptional(final String jarPath) {
+    jarPath(jarPath);
+    jarPathsOptional.add(jarPath);
+    return this;
+  }
+  
   private void checkFinalized() {
     if (finalized) {
       throw new IllegalStateException("The description was already finalized");
@@ -72,14 +101,25 @@ public class ProjectDescription {
   }
   
   Set<String> getSourcePaths() {
-    return sourcePaths;
+    return Collections.unmodifiableSet(sourcePaths);
   }
   
+  boolean isSourcePathOptional(final String sourcePath) {
+    return sourcePathsOptional.contains(sourcePath);
+  }
+  
+  /**
+   * Get all
+   */
   Set<String> getJarPaths() {
-    return jarPaths;
+    return Collections.unmodifiableSet(jarPaths);
+  }
+  
+  boolean isJarPathOptional(final String jarPath) {
+    return jarPathsOptional.contains(jarPath);
   }
   
   Set<String> getJarFiles() {
-    return jarFiles;
+    return Collections.unmodifiableSet(jarFiles);
   }
 }

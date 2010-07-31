@@ -113,13 +113,16 @@ public class Util {
       final FilePredicate predicate) {
     final Set<File> files = new HashSet<File>();
     
-    for (final File file : baseDir.listFiles()) {
-      if (file.isDirectory()) {
-        files.addAll(getFilesRecursively(file, predicate));
-      } else if (predicate == null || predicate.accept(file)) {
-        
-        if (HIDE_DOT_FILES.accept(file)) {
-          files.add(file);
+    final File[] filesInDir = baseDir.listFiles();
+    if (filesInDir != null) {
+      for (final File file : filesInDir) {
+        if (file.isDirectory()) {
+          files.addAll(getFilesRecursively(file, predicate));
+        } else if (predicate == null || predicate.accept(file)) {
+          
+          if (HIDE_DOT_FILES.accept(file)) {
+            files.add(file);
+          }
         }
       }
     }

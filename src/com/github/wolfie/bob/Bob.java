@@ -396,7 +396,7 @@ public final class Bob {
             jarFiles.add(jarFile);
           }
         }
-      } else {
+      } else if (!desc.isJarPathOptional(jarPathName)) {
         System.err.println("Could not read directory "
             + jarPath.getAbsolutePath());
       }

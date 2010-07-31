@@ -17,6 +17,7 @@ public final class Defaults {
   // compilation
   
   public static final String SOURCE_PATH = "src";
+  public static final String LIBRARY_PATH = "lib";
   
   // jars
   
