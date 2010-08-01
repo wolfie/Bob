@@ -90,6 +90,7 @@ public final class Bob {
    * <code>null</code> value
    */
   private static String buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
+  private static boolean buildfileIsExplicit;
   
   /**
    * The name of the desired build method. Can be <code>null</code>, which means
@@ -171,7 +172,7 @@ public final class Bob {
     CompilationCache.set(info.getCache());
     
     final File buildFile = getBuildFile();
-    if (buildFile.getPath().equals(Defaults.DEFAULT_BUILD_SRC_PATH)) {
+    if (!buildfileIsExplicit) {
       Log.get().log("Buildfile " + buildfile, LogLevel.INFO);
     }
     
@@ -616,6 +617,7 @@ public final class Bob {
       else if (Util.isAnyOf(arg, "-f", "--build-file")) {
         try {
           buildfile = argQueue.remove();
+          buildfileIsExplicit = true;
         } catch (final NoSuchElementException e) {
           showHelp = true;
           skipBuilding = true;
