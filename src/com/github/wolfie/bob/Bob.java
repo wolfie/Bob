@@ -33,6 +33,7 @@ import javax.tools.ToolProvider;
 
 import com.github.wolfie.bob.BuildFileUtil.TargetInfo;
 import com.github.wolfie.bob.CompilationCache.Builder;
+import com.github.wolfie.bob.Log.LogLevel;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.action.optional.JavaLauncher;
 import com.github.wolfie.bob.annotation.Target;
@@ -88,7 +89,7 @@ public final class Bob {
    * A path to the desired build file. Guaranteed to have a non-
    * <code>null</code> value
    */
-  private static String buildfile;
+  private static String buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
   
   /**
    * The name of the desired build method. Can be <code>null</code>, which means
@@ -111,11 +112,17 @@ public final class Bob {
   
   public static final void main(final String[] args) {
     try {
+      Log.get().enter("Bob");
       handleArgs(args);
       
       if (!skipBuilding) {
         if (shouldBeBootstrapped()) {
-          bootstrap();
+          Log.get().enter("Boot");
+          try {
+            bootstrap();
+          } finally {
+            Log.get().exit();
+          }
         } else {
           run();
         }
@@ -129,6 +136,7 @@ public final class Bob {
         listTargets();
       }
       
+      // TODO: switch over to logging
     } catch (final NoBuildFileFoundException e) {
       e.printStackTrace();
       System.err.println("Are you sure you're in the right directory?");
@@ -142,14 +150,15 @@ public final class Bob {
     
     if (!skipBuilding) {
       if (success) {
-        System.out.println("Build successful");
+        Log.get().log("Build successful", LogLevel.VERBOSE);
       } else {
-        System.err.println("Build FAILED!");
+        Log.get().log("Build FAILED!", LogLevel.SEVERE);
         System.exit(1);
       }
     } else {
-      System.out.println("Didn't build anything");
+      Log.get().log("Didn't build anything", LogLevel.VERBOSE);
     }
+    Log.get().exit();
   }
   
   private static boolean shouldBeBootstrapped() {
@@ -162,6 +171,10 @@ public final class Bob {
     CompilationCache.set(info.getCache());
     
     final File buildFile = getBuildFile();
+    if (buildFile.getPath().equals(Defaults.DEFAULT_BUILD_SRC_PATH)) {
+      Log.get().log("Buildfile " + buildfile, LogLevel.INFO);
+    }
+    
     final File buildClassFile = compile(buildFile, info.getClasspath());
     
     Class<? extends BobBuild> buildClass;
@@ -173,13 +186,16 @@ public final class Bob {
     }
     
     final Method buildMethod = getBuildMethod(buildClass);
-    
-    System.out.println("Invoking " + buildMethod);
     final Action action = getAction(buildMethod, buildClass);
     
     if (action != null) {
-      System.out.println("Processing " + action);
-      action.process();
+      Log.get().log("Processing " + action, LogLevel.DEBUG);
+      Log.get().enter(action.getClass().getSimpleName());
+      try {
+        action.process();
+      } finally {
+        Log.get().exit();
+      }
       success = true;
     } else {
       throw new NullPointerException(String.format("%s.%s() returned null.",
@@ -233,6 +249,9 @@ public final class Bob {
    * This method will never return, but terminate before returning.
    */
   private static void bootstrap() {
+    
+    Log.get().log("Bootstrapping", LogLevel.DEBUG);
+    
     final File buildFile = getBuildFile();
     
     final ProjectDescription desc = BuildFileUtil
@@ -242,8 +261,8 @@ public final class Bob {
       final BootstrapInfo info = compileAndGetBootstrapInfo(desc);
       final File serializedCache = serializeBootstrapInfoIntoFile(info);
       
-      System.out.println("Serialized compilation cache into "
-          + serializedCache.getAbsolutePath());
+      Log.get().log("Serialized compilation cache into "
+          + serializedCache.getAbsolutePath(), LogLevel.DEBUG);
       
       final JavaLauncher bobRebooter = new JavaLauncher(Bob.class);
       final String jvmArg = String.format("-D%s=%s", CACHE_SYSTEM_PROPERTY,
@@ -257,9 +276,10 @@ public final class Bob {
             .userProvidedForcedClassPath(classpathFile.getAbsolutePath());
       }
       
-      System.out.println("Rebooting Bob with " + bobRebooter);
+      Log.get().log("Rebooting Bob with " + bobRebooter, LogLevel.DEBUG);
       System.exit(bobRebooter.run());
     } catch (final IOException e) {
+      // TODO: print via the logger instead.
       e.printStackTrace();
       System.exit(1);
     }
@@ -379,26 +399,28 @@ public final class Bob {
     for (final String jarFileName : desc.getJarFiles()) {
       final File jarFile = new File(jarFileName);
       if (jarFile.canRead()) {
-        System.out.println("Added " + jarFile.getAbsolutePath());
+        Log.get().log("Added " + jarFile.getAbsolutePath(), LogLevel.DEBUG);
         jarFiles.add(jarFile);
       } else {
-        System.err.println("Could not be read: " + jarFile.getAbsolutePath());
+        Log.get().log("Could not be read: " + jarFile.getAbsolutePath(),
+            LogLevel.WARNING);
       }
     }
     
     for (final String jarPathName : desc.getJarPaths()) {
       final File jarPath = new File(jarPathName);
       if (jarPath.canRead() && jarPath.isDirectory()) {
-        System.out.println("Adding all jars from " + jarPath.getAbsolutePath());
+        Log.get().log("Adding all jars from " + jarPath.getAbsolutePath(),
+            LogLevel.DEBUG);
         for (final File jarFile : jarPath.listFiles()) {
           if (jarFile.getName().endsWith(".jar")) {
-            System.out.println("Added " + jarFile.getName());
+            Log.get().log("Added " + jarFile.getName(), LogLevel.DEBUG);
             jarFiles.add(jarFile);
           }
         }
       } else if (!desc.isJarPathOptional(jarPathName)) {
-        System.err.println("Could not read directory "
-            + jarPath.getAbsolutePath());
+        Log.get().log("Could not read directory "
+            + jarPath.getAbsolutePath(), LogLevel.WARNING);
       }
     }
     
@@ -443,6 +465,8 @@ public final class Bob {
       method = getBuildTarget(buildClass, buildtarget);
     } else {
       method = getDefaultBuildTarget(buildClass);
+      Log.get().log("Using " + method.getName() + " as build target",
+          LogLevel.INFO);
     }
     
     return Util.verifyBuildTargetMethod(method);
@@ -568,19 +592,15 @@ public final class Bob {
       }
       
       if (Util.isAnyOf(arg, "-v", "--verbose")) {
-        // TODO
+        Log.get().setLogLevel(LogLevel.VERBOSE);
       }
 
-      else if (Util.isAnyOf(arg, "-vv", "--very-verbose")) {
-        // TODO
+      else if (Util.isAnyOf(arg, "-vv", "--debug")) {
+        Log.get().setLogLevel(LogLevel.DEBUG);
       }
 
-      else if (Util.isAnyOf(arg, "-s", "--silent")) {
-        // TODO
-      }
-
-      else if (Util.isAnyOf(arg, "-ss", "--very-silent")) {
-        // TODO
+      else if (Util.isAnyOf(arg, "-q", "--quiet")) {
+        Log.get().setLogLevel(LogLevel.SEVERE);
       }
 
       else if (Util.isAnyOf(arg, "-l", "--list-targets")) {
@@ -611,19 +631,9 @@ public final class Bob {
       }
     }
     
-    if (buildfile == null) {
-      buildfile = Defaults.DEFAULT_BUILD_SRC_PATH;
-      System.out.println("Using the default "
-          + buildfile + " as the buildfile");
-    } else {
-      System.out.println("Using " + buildfile + " as the buildfile");
-    }
-    
     if (!argQueue.isEmpty()) {
       buildtarget = argQueue.remove();
-      System.out.println("Using \"" + buildtarget + "\" as the build target");
     }
-    // else {} is handled at #getBuildMethod()
     
     if (!argQueue.isEmpty()) {
       showHelp = true;
@@ -636,10 +646,9 @@ public final class Bob {
     System.out.println("Usage: bob [<options>] [<buildtarget>]");
     System.out.println();
     System.out.println("Options:");
-    System.out.println("# -v, --verbose          show additional build info");
-    System.out.println("# -vv, --more-verbose    show even more information");
-    System.out.println("# -s, --silent           suppress build info");
-    System.out.println("# -ss, --more-silent     suppress almost all info");
+    System.out.println(" -v, --verbose          show additional build info");
+    System.out.println(" -vv, --debug           show even debug information");
+    System.out.println(" -q, --quiet            show only error messages");
     System.out.println(" -h, --help             show this help");
     System.out.println();
     System.out.println(" -l, --list-targets     ");

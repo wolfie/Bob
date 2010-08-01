@@ -18,6 +18,9 @@ import java.util.jar.Manifest;
 
 import com.github.wolfie.bob.Bob;
 import com.github.wolfie.bob.Defaults;
+import com.github.wolfie.bob.Log;
+import com.github.wolfie.bob.Log.LogLevel;
+import com.github.wolfie.bob.Log.MultiLog;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
@@ -62,6 +65,8 @@ public class Jar implements Action {
    */
   protected String archiveClassSourceDestination = "";
   
+  private boolean manifestPathIsDefault = false;;
+  
   @Override
   public final void process() {
     setDefaults();
@@ -71,27 +76,38 @@ public class Jar implements Action {
     
     final File classesDir = getClassesDirectory();
     
-    System.out.println("Finding classfiles from "
-        + classesDir.getAbsolutePath());
+    Log.get().log("Finding classfiles from "
+        + classesDir.getAbsolutePath(), LogLevel.DEBUG);
     final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
         Util.JAVA_CLASS_FILE);
     for (final File classFile : classFiles) {
       final String entryName = archiveClassSourceDestination
           + Util.relativeFileName(classesDir, classFile);
-      System.out.println(entryName + " <- " + classFile.getAbsolutePath());
+      
+      Log.get().log(new MultiLog(entryName, LogLevel.VERBOSE)
+              .or(entryName + " <- " + classFile.getAbsolutePath(),
+                  LogLevel.DEBUG)
+          );
+      
       entryMap.put(entryName, classFile);
     }
     
     try {
       final File sourcesDir = getSourcesDirectory();
-      System.out
-          .println("Finding sources from " + sourcesDir.getAbsolutePath());
+      
+      Log.get().logFile("Finding sources from %s", sourcesDir);
+      
       final Collection<File> sourceFiles = Util.getFilesRecursively(sourcesDir,
           Util.JAVA_SOURCE_FILE);
       for (final File sourceFile : sourceFiles) {
         final String entryName = archiveClassSourceDestination
             + Util.relativeFileName(sourcesDir, sourceFile);
-        System.out.println(entryName + " <- " + sourceFile.getAbsolutePath());
+        
+        final String logShort2 = entryName;
+        final String logLong2 = entryName + " <- "
+            + sourceFile.getAbsolutePath();
+        Log.get().log(new MultiLog(logShort2, LogLevel.VERBOSE)
+            .or(logLong2, LogLevel.DEBUG));
         entryMap.put(entryName, sourceFile);
       }
     } catch (final NoSourcesToIncludeException e) {
@@ -146,7 +162,10 @@ public class Jar implements Action {
       
       jarOutputStream.close();
       
-      System.out.println("Wrote " + destination.getAbsolutePath());
+      final String shortLog = "Wrote " + destination.getPath();
+      final String longLog = "Wrote " + destination.getAbsolutePath();
+      Log.get().log(
+          new MultiLog(shortLog, LogLevel.INFO).or(longLog, LogLevel.VERBOSE));
     } catch (final Exception e) {
       throw new ProcessingError(e);
     }
@@ -184,9 +203,9 @@ public class Jar implements Action {
       if (fromCompilation != null) {
         return fromCompilation.getSourceDirectory();
       } else {
-        System.out
-            .println("Although requested, no sources will be included, since "
-                + "there are no available chains to take sources from.");
+        Log.get().log("Although requested, no sources will be included, since "
+                + "there are no available chains to take sources from.",
+            LogLevel.WARNING);
         throw new NoSourcesToIncludeException();
       }
     } else {
@@ -197,12 +216,13 @@ public class Jar implements Action {
   private File getManifestFile() throws NoManifestFileFoundException {
     final File manifestFile = new File(manifestPath);
     if (manifestFile.exists() && manifestFile.canRead()) {
-      System.out.println("Using manifest file from "
-          + manifestFile.getAbsolutePath());
+      Log.get().logFile("Using manifest file from %s", manifestFile);
       return manifestFile;
     } else {
-      System.out.println("Could not include manifest from file "
-          + manifestFile.getAbsolutePath());
+      if (!manifestPathIsDefault) {
+        Log.get().log("Could not include manifest from file "
+                + manifestFile.getAbsolutePath(), LogLevel.WARNING);
+      }
       throw new NoManifestFileFoundException();
     }
   }
@@ -217,6 +237,7 @@ public class Jar implements Action {
     
     if (manifestPath == null) {
       manifestPath = Defaults.JAR_MANIFEST_PATH;
+      manifestPathIsDefault = true;
     }
     
     // no sources added by default
@@ -314,7 +335,7 @@ public class Jar implements Action {
     // Adjusted Jar entry name (for Windows-style paths)
     final String adjustedEntryName = entryName.replace('\\', '/');
     
-    System.out.println("Compressing " + adjustedEntryName);
+    Log.get().log("Compressing " + adjustedEntryName, LogLevel.DEBUG);
     
     final JarEntry entry = new JarEntry(adjustedEntryName);
     entry.setTime(source.lastModified());

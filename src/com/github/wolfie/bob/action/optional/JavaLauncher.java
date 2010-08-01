@@ -18,6 +18,8 @@ import java.util.Set;
 
 import org.apache.tools.ant.taskdefs.PumpStreamHandler;
 
+import com.github.wolfie.bob.Log;
+import com.github.wolfie.bob.Log.LogLevel;
 import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 
@@ -111,7 +113,7 @@ public class JavaLauncher {
     final String[] cmd = getCommands();
     
     for (final String string : cmd) {
-      System.out.println(string);
+      Log.get().log(string, LogLevel.DEBUG);
     }
     
     final Process process = Runtime.getRuntime().exec(cmd, null, null);
@@ -223,21 +225,20 @@ public class JavaLauncher {
   private String findClassFromJars(final String classNameToLoad,
       final Map<String, ClassLoader> cache) {
     
-    System.out.println("Searching for " + classNameToLoad);
+    Log.get().log("Searching for " + classNameToLoad, LogLevel.DEBUG);
     for (final Map.Entry<String, ClassLoader> entry : cache.entrySet()) {
       try {
         final ClassLoader classLoader = entry.getValue();
         
-        System.out.println("Trying " + entry.getKey());
+        Log.get().log("Trying " + entry.getKey(), LogLevel.DEBUG);
         
         classLoader.loadClass(classNameToLoad);
         
-        System.out.println("Found it!");
+        Log.get().log("Found it!", LogLevel.DEBUG);
         // it was loaded, since no exception was thrown. Return the jar name.
         return entry.getKey();
         
       } catch (final ClassNotFoundException e) {
-        System.out.println("Nope...");
         // ignore, just try the next classloader.
       }
     }

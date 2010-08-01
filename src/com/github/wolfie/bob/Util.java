@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.github.wolfie.bob.Log.LogLevel;
+import com.github.wolfie.bob.Log.MultiLog;
 import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
@@ -189,7 +191,8 @@ public class Util {
    */
   public static void createDir(final File directory) {
     if (!directory.isDirectory()) {
-      System.out.println("Creating directory " + directory.getAbsolutePath());
+      Log.get().log("Creating directory " + directory.getAbsolutePath(),
+          LogLevel.VERBOSE);
       final boolean success = directory.mkdir();
       
       if (!success) {
@@ -202,8 +205,8 @@ public class Util {
             + directory.getAbsolutePath()
             + " since it is an existing file.");
       } else {
-        System.out.println("Not creating " + directory.getAbsolutePath()
-            + " since it already exists.");
+        Log.get().log("Not creating " + directory.getAbsolutePath()
+            + " since it already exists.", LogLevel.WARNING);
       }
     }
   }
@@ -225,15 +228,15 @@ public class Util {
         }
       }
       
-      System.out.println("Deleting " + file.getAbsolutePath());
+      Log.get().log("Deleting " + file.getAbsolutePath(), LogLevel.VERBOSE);
       final boolean success = file.delete();
       if (!success) {
         throw new BobRuntimeException("Could not delete "
             + file.getAbsolutePath());
       }
     } else {
-      System.out.println("Not removing " + file.getAbsolutePath()
-          + " since it does not exist.");
+      Log.get().log("Not removing " + file.getAbsolutePath()
+          + " since it does not exist.", LogLevel.WARNING);
     }
   }
   
@@ -381,7 +384,14 @@ public class Util {
   private static void copy(final File source, final File destination)
       throws IOException {
     
-    System.out.println(String.format("Copying: %s -> %s", source, destination));
+    final String logShort = String.format("Copying: %s -> %s",
+        source.getPath(), destination.getPath());
+    final String logLong = String.format("Copying: %s -> %s",
+        source.getAbsolutePath(), destination.getAbsolutePath());
+    Log.get().log(
+        new MultiLog(logShort, LogLevel.VERBOSE)
+            .or(logLong, LogLevel.DEBUG)
+        );
     
     Util.makeParentDirs(destination);
     final FileChannel srcChannel = new FileInputStream(source).getChannel();
@@ -430,5 +440,20 @@ public class Util {
     }
     reader.close();
     return fileData.toString();
+  }
+  
+  public static String rightAlign(final String string, final int length) {
+    if (string.length() < length) {
+      final StringBuilder builder = new StringBuilder(length);
+      while (builder.length() + string.length() < length) {
+        builder.append(' ');
+      }
+      builder.append(string);
+      return builder.toString();
+    }
+
+    else {
+      return string;
+    }
   }
 }
