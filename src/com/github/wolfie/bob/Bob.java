@@ -172,10 +172,6 @@ public final class Bob {
     CompilationCache.set(info.getCache());
     
     final File buildFile = getBuildFile();
-    if (!buildfileIsExplicit) {
-      Log.get().log("Buildfile " + buildfile, LogLevel.INFO);
-    }
-    
     final File buildClassFile = compile(buildFile, info.getClasspath());
     
     Class<? extends BobBuild> buildClass;
@@ -254,6 +250,9 @@ public final class Bob {
     Log.get().log("Bootstrapping", LogLevel.DEBUG);
     
     final File buildFile = getBuildFile();
+    if (!buildfileIsExplicit) {
+      Log.get().log("Buildfile " + buildfile, LogLevel.INFO);
+    }
     
     final ProjectDescription desc = BuildFileUtil
           .getProjectDescription(buildFile);
