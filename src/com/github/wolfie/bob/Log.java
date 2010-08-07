@@ -78,13 +78,11 @@ public class Log {
   private static final int MAX_LOCATION_LENGTH = 8;
   
   // lazy initialization
-  private static Log singleton = null;
+  private volatile static Log singleton = null;
   
   private final Stack<String> logStack = new Stack<String>();
   
   private LogLevel logLevel = LogLevel.INFO;
-  
-  private boolean logStackHasChangedSinceLastOutput = false;
   
   private final PrintStream out = System.out;
   private final PrintStream err = System.err;
@@ -99,13 +97,11 @@ public class Log {
     }
     
     logStack.push(location);
-    logStackHasChangedSinceLastOutput = true;
     return this;
   }
   
   public synchronized Log exit() {
     logStack.pop();
-    logStackHasChangedSinceLastOutput = true;
     return this;
   }
   

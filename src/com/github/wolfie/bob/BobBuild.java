@@ -11,17 +11,25 @@ abstract public class BobBuild {
   
   /**
    * <p>
-   * <tt>TODO: write javadoc</tt>
+   * Describe your project's strucutre with a {@link ProjectDescription}.
    * </p>
    * 
    * <p>
-   * <em>Implementation note:</em> This method will be invoked in the
-   * superclass' constructor, so fields are guaranteed to be uninitialized.
-   * References to uninitialized fields lead most probably into
-   * {@link NullPointerException NullPointerExceptions}.
+   * If the user project doesn't override this method, the default project
+   * description will be used.
    * </p>
    * 
-   * @return
+   * 
+   * <p>
+   * <em>Implementation note:</em> This method will be invoked in the
+   * superclass' constructor, so non-static fields are guaranteed to be
+   * uninitialized. References to uninitialized non-static fields lead most
+   * probably into {@link NullPointerException NullPointerExceptions}.
+   * </p>
+   * 
+   * @see ProjectDescription#getDefault()
    */
-  abstract protected ProjectDescription describeProject();
+  protected ProjectDescription describeProject() {
+    return ProjectDescription.getDefault();
+  }
 }

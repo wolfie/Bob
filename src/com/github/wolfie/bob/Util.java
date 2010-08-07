@@ -24,6 +24,7 @@ import com.github.wolfie.bob.action.Action;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 import com.github.wolfie.bob.exception.BuildTargetException;
+import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 
 public class Util {
@@ -110,9 +111,19 @@ public class Util {
    *          The predicate to fulfill.
    * @return All {@link File}s that match <tt>predicate</tt> and are in, or
    *         under, <tt>baseDir</tt>.
+   * @throws NotADirectoryOrCouldNotReadException
+   *           if <tt>baseDir</tt> is not a directory, or could not be read.
    */
   public static Set<File> getFilesRecursively(final File baseDir,
-      final FilePredicate predicate) {
+      final FilePredicate predicate)
+      throws NotADirectoryOrCouldNotReadException {
+    
+    checkNulls(baseDir);
+    
+    if (!baseDir.isDirectory() || !baseDir.canRead()) {
+      throw new NotADirectoryOrCouldNotReadException(baseDir);
+    }
+    
     final Set<File> files = new HashSet<File>();
     
     final File[] filesInDir = baseDir.listFiles();
@@ -132,7 +143,8 @@ public class Util {
     return files;
   }
   
-  public static Set<File> getFilesRecursively(final File baseDir) {
+  public static Set<File> getFilesRecursively(final File baseDir)
+      throws NotADirectoryOrCouldNotReadException {
     return getFilesRecursively(baseDir, null);
   }
   

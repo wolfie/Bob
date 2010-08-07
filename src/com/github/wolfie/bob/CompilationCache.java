@@ -8,6 +8,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.github.wolfie.bob.Log.LogLevel;
+
 public final class CompilationCache implements Serializable {
   
   public static final class NotCompiledException extends Exception {
@@ -24,6 +26,9 @@ public final class CompilationCache implements Serializable {
     private boolean isBuilt = false;
     
     public Builder(final File baseDirForClasses) {
+      Log.get().log(
+          "Building a compilation cache for basedir "
+              + baseDirForClasses.getPath(), LogLevel.DEBUG);
       cache = new CompilationCache(baseDirForClasses);
     }
     

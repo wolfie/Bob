@@ -42,6 +42,7 @@ import com.github.wolfie.bob.exception.CompilationFailedException;
 import com.github.wolfie.bob.exception.IncompatibleReturnTypeException;
 import com.github.wolfie.bob.exception.NoBuildFileFoundException;
 import com.github.wolfie.bob.exception.NoDefaultBuildTargetMethodFoundException;
+import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
 import com.github.wolfie.bob.exception.UnexpectedArgumentAmountException;
 import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
@@ -339,8 +340,17 @@ public final class Bob {
     final Builder cacheBuilder = new CompilationCache.Builder(classOutputDir);
     
     for (final String sourcePath : desc.getSourcePaths()) {
-      final Touple<Set<File>, Set<URI>> touple = compile(sourcePath,
-          classPath, classOutputDir);
+      Touple<Set<File>, Set<URI>> touple;
+      try {
+        touple = compile(sourcePath,
+            classPath, classOutputDir);
+      } catch (final NotADirectoryOrCouldNotReadException e) {
+        if (desc.isSourcePathOptional(sourcePath)) {
+          continue;
+        } else {
+          throw new BootstrapError(e);
+        }
+      }
       
       cacheBuilder.add(sourcePath, touple.getFirst(), touple.getSecond());
     }
@@ -358,14 +368,26 @@ public final class Bob {
    * @return A {@link Touple} of source files to their respective class file
    *         URIs
    * @throws IOException
+   * @throws NotADirectoryOrCouldNotReadException
    */
   private static Touple<Set<File>, Set<URI>> compile(
       final String sourcePath,
       final Iterable<File> classPath, final File classOutputDir)
-      throws IOException {
+      throws IOException, NotADirectoryOrCouldNotReadException {
+    
+    Log.get().log("Preparing to compile source path " + sourcePath,
+        LogLevel.DEBUG);
     
     final Set<File> sourceFiles = Util.getFilesRecursively(new File(
         sourcePath), Util.JAVA_SOURCE_FILE);
+    Log.get().log("Found " + sourceFiles.size() + " file(s) recursively",
+        LogLevel.DEBUG);
+    
+    if (sourceFiles.isEmpty()) {
+      Log.get().log("Nothing to compile, returning...", LogLevel.DEBUG);
+      return Touple.of((Set<File>) new HashSet<File>(),
+          (Set<URI>) new HashSet<URI>());
+    }
     
     final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     
@@ -377,8 +399,13 @@ public final class Bob {
         .singleton(classOutputDir));
     final Iterable<? extends JavaFileObject> sourceFileObjects = fileManager
         .getJavaFileObjectsFromFiles(sourceFiles);
+    
+    Log.get().log("Compiling " + sourcePath + " ...", LogLevel.DEBUG);
+    
     compiler.getTask(null, fileManager, diagnosticListener, null, null,
         sourceFileObjects).call();
+    
+    Log.get().log("Done", LogLevel.DEBUG);
     
     if (diagnosticListener.hasProblems()) {
       for (final Diagnostic<? extends JavaFileObject> problem : diagnosticListener
@@ -395,6 +422,8 @@ public final class Bob {
   
   private static Collection<File> getClassPath(final ProjectDescription desc) {
     final Collection<File> jarFiles = new HashSet<File>();
+    
+    Log.get().log("Calculating classpath", LogLevel.DEBUG);
     
     for (final String jarFileName : desc.getJarFiles()) {
       final File jarFile = new File(jarFileName);

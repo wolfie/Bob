@@ -1,11 +1,14 @@
 package com.github.wolfie.bob.action;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
 import com.github.wolfie.bob.Defaults;
 import com.github.wolfie.bob.Util;
+import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
+import com.github.wolfie.bob.exception.ProcessingError;
 
 /**
  * <p>
@@ -68,7 +71,15 @@ public class War extends Jar {
     
     System.out.println("Finding web content files from " + webContentPath);
     final File webContentDirectory = new File(webContentPath);
-    for (final File webFile : getWebContentFiles()) {
+    
+    Collection<File> webContentFiles;
+    try {
+      webContentFiles = getWebContentFiles();
+    } catch (final NotADirectoryOrCouldNotReadException e) {
+      throw new ProcessingError(e);
+    }
+    
+    for (final File webFile : webContentFiles) {
       
       final String entryName = Util.relativeFileName(webContentDirectory,
           webFile);
@@ -95,7 +106,13 @@ public class War extends Jar {
     super.subClassProcessHook(entryMap);
   }
   
-  private Collection<File> getWebContentFiles() {
+  /**
+   * @throws IOException
+   *           see {@link Util#getFilesRecursively(File)}
+   * @throws NotADirectoryOrCouldNotReadException
+   */
+  private Collection<File> getWebContentFiles()
+      throws NotADirectoryOrCouldNotReadException {
     System.out.println("Finding web archive files");
     return Util.getFilesRecursively(new File(webContentPath));
   }

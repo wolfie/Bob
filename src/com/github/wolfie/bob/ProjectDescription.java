@@ -17,8 +17,21 @@ public class ProjectDescription {
   private final Set<String> jarFiles = new HashSet<String>();
   
   /**
+   * <p>
    * Get a freely modifiable instance of {@link ProjectDescription} that
    * conforms to Bob's default project layout.
+   * </p>
+   * 
+   * <p>
+   * Default values:
+   * <dl>
+   * <dt>Source path:</dt>
+   * <dd>src</dd>
+   * <dd>optional: test</dd>
+   * <dt>JAR path:</dt>
+   * <dd>optional: lib</dd>
+   * </dl>
+   * </p>
    */
   public static ProjectDescription getDefault() {
     return new ProjectDescription()
@@ -29,10 +42,11 @@ public class ProjectDescription {
   
   /**
    * <p>
-   * <tt>TODO: write javadoc</tt>
+   * Define a source path, relative to the project's root directory.
    * </p>
    * 
    * <p>
+   * If the given path does not exist, or is not readable, the build will halt.
    * This method may be called several times to define several paths.
    * </p>
    * 

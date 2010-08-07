@@ -25,6 +25,7 @@ import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.InternalConsistencyException;
 import com.github.wolfie.bob.exception.NoManifestFileFoundException;
 import com.github.wolfie.bob.exception.NoSourcesToIncludeException;
+import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
 import com.github.wolfie.bob.exception.ProcessingError;
 
@@ -78,8 +79,13 @@ public class Jar implements Action {
     
     Log.get().log("Finding classfiles from "
         + classesDir.getAbsolutePath(), LogLevel.DEBUG);
-    final Collection<File> classFiles = Util.getFilesRecursively(classesDir,
-        Util.JAVA_CLASS_FILE);
+    Collection<File> classFiles;
+    try {
+      classFiles = Util.getFilesRecursively(classesDir,
+          Util.JAVA_CLASS_FILE);
+    } catch (final NotADirectoryOrCouldNotReadException e) {
+      throw new ProcessingError(e);
+    }
     for (final File classFile : classFiles) {
       final String entryName = archiveClassSourceDestination
           + Util.relativeFileName(classesDir, classFile);
@@ -97,8 +103,13 @@ public class Jar implements Action {
       
       Log.get().logFile("Finding sources from %s", sourcesDir);
       
-      final Collection<File> sourceFiles = Util.getFilesRecursively(sourcesDir,
-          Util.JAVA_SOURCE_FILE);
+      Collection<File> sourceFiles;
+      try {
+        sourceFiles = Util.getFilesRecursively(sourcesDir,
+            Util.JAVA_SOURCE_FILE);
+      } catch (final NotADirectoryOrCouldNotReadException e) {
+        throw new ProcessingError(e);
+      }
       for (final File sourceFile : sourceFiles) {
         final String entryName = archiveClassSourceDestination
             + Util.relativeFileName(sourcesDir, sourceFile);
