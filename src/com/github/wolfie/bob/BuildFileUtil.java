@@ -24,6 +24,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import com.github.wolfie.bob.Log.LogLevel;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 
@@ -155,14 +156,14 @@ public class BuildFileUtil {
   private static File getDescriptionMethodSourceFile(final File buildFile)
       throws IOException {
     final String methodBodyString = getDescriptionMethod(buildFile);
-    
     final File methodSourceFile = File.createTempFile("BobBuildDesc", ".java");
     final String methodClassName = getClassName(methodSourceFile);
     
     final String classString = String.format(
-        "import %s;\npublic class %s { %s }",
+        "import %s;\npublic class %s extends %s { %s }",
         ProjectDescription.class.getName(),
         methodClassName,
+        BobBuild.class.getName(),
         methodBodyString);
     
     final FileWriter sourceWriter = new FileWriter(methodSourceFile);
@@ -184,7 +185,15 @@ public class BuildFileUtil {
     final String code = Util.getFileAsString(file);
     final String method = getMethodCode(code, DESCRIBE_PROJECT_METHOD_NAME);
     
-    return method;
+    if (method != null) {
+      return method;
+    } else {
+      Log.get().log("No method found, calling superclass instead",
+          LogLevel.DEBUG);
+      return "public " + ProjectDescription.class.getName() + " "
+          + DESCRIBE_PROJECT_METHOD_NAME + "() { return super."
+          + DESCRIBE_PROJECT_METHOD_NAME + "();}";
+    }
   }
   
   private static String getMethodCode(String code,
@@ -306,7 +315,17 @@ public class BuildFileUtil {
   
   public static ProjectDescription getProjectDescription(final File buildFile) {
     try {
+      
+      Log.get().log(
+          "Starting to extract project description method from "
+              + buildFile.getAbsolutePath(), LogLevel.DEBUG);
+      Log.get().indentMore();
+      
       final File descClassFile = getDescriptionMethodClassFile(buildFile);
+      
+      Log.get().log("Classfile: " + descClassFile.getAbsolutePath(),
+          LogLevel.DEBUG);
+      
       final ClassLoader descClassLoader = BootClassLoader.get(descClassFile);
       final String descClassName = getClassName(descClassFile);
       final Class<?> descClass = descClassLoader.loadClass(descClassName);
@@ -334,6 +353,8 @@ public class BuildFileUtil {
       throw new BobRuntimeException(e);
     } catch (final InvocationTargetException e) {
       throw new BobRuntimeException(e);
+    } finally {
+      Log.get().indentLess();
     }
   }
   

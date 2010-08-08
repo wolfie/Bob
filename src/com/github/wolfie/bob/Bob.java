@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
@@ -173,7 +174,7 @@ public final class Bob {
     CompilationCache.set(info.getCache());
     
     final File buildFile = getBuildFile();
-    final File buildClassFile = compile(buildFile, info.getClasspath());
+    final File buildClassFile = compileBuildFile(buildFile, info.getClasspath());
     
     Class<? extends BobBuild> buildClass;
     try {
@@ -249,6 +250,13 @@ public final class Bob {
   private static void bootstrap() {
     
     Log.get().log("Bootstrapping", LogLevel.DEBUG);
+    
+    if (Log.get().isLoggingAt(LogLevel.DEBUG)) {
+      Log.get().log("Environment variables:", LogLevel.DEBUG);
+      for (final Entry<String, String> envs : System.getenv().entrySet()) {
+        Log.get().log(envs.getKey() + ": " + envs.getValue(), LogLevel.DEBUG);
+      }
+    }
     
     final File buildFile = getBuildFile();
     if (!buildfileIsExplicit) {
@@ -515,26 +523,33 @@ public final class Bob {
   }
   
   private static Method getDefaultBuildTarget(final Class<?> buildClass) {
-    Method buildMethod = null;
+    Method buildMethodDefaultAnnotated = null;
+    Method buildMethodDefaultName = null;
     
     for (final Method method : buildClass.getMethods()) {
       
       final Target targetAnnotation = method.getAnnotation(Target.class);
       if (targetAnnotation != null) {
         if (targetAnnotation.defaultTarget()) {
-          
-          if (buildMethod == null) {
-            buildMethod = method;
+          if (buildMethodDefaultAnnotated == null) {
+            buildMethodDefaultAnnotated = method;
+          } else {
+            throw new SeveralDefaultBuildTargetMethodsFoundException(buildClass);
+          }
+        } else if (method.getName().equals(Defaults.DEFAULT_BUILD_METHOD_NAME)) {
+          if (buildMethodDefaultName == null) {
+            buildMethodDefaultName = method;
           } else {
             throw new SeveralDefaultBuildTargetMethodsFoundException(buildClass);
           }
         }
-        
       }
     }
     
-    if (buildMethod != null) {
-      return buildMethod;
+    if (buildMethodDefaultAnnotated != null) {
+      return buildMethodDefaultAnnotated;
+    } else if (buildMethodDefaultName != null) {
+      return buildMethodDefaultName;
     } else {
       throw new NoDefaultBuildTargetMethodFoundException(buildClass);
     }
@@ -545,50 +560,63 @@ public final class Bob {
         buildfile.lastIndexOf("."));
   }
   
-  private static File compile(final File buildFile,
-      final Collection<File> classpath)
+  private static File compileBuildFile(final File buildFile,
+      final Collection<File> givenClasspath)
       throws CompilationFailedException {
     
-    final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    final Set<File> classpath = new HashSet<File>(givenClasspath);
+    classpath.add(new File(System.getenv("BOB_LIB") + File.separator
+        + "bob.jar"));
     
+    Log.get().log("Preparing to compile build file", LogLevel.DEBUG);
+    
+    Log.get().indentMore();
     try {
-      final File tempDir = Util.getTemporaryDirectory();
+      Log.get().log("Classpath: " + Util.implode(";", classpath),
+          LogLevel.DEBUG);
       
-      final DiagnosticCollector<JavaFileObject> diagnosticListener = new DiagnosticCollector<JavaFileObject>();
-      final StandardJavaFileManager fileManager = compiler
-          .getStandardFileManager(diagnosticListener, null, null);
-      fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections
-          .singleton(tempDir));
-      fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
+      final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
       
-      final Iterable<? extends JavaFileObject> javaFiles = fileManager
-          .getJavaFileObjects(buildFile);
-      
-      // add debug info
-      final List<String> options = Arrays.asList("-g");
-      
-      compiler.getTask(null, fileManager, diagnosticListener, options, null,
-          javaFiles).call();
-      
-      final List<Diagnostic<? extends JavaFileObject>> diagnostics = diagnosticListener
-          .getDiagnostics();
-      if (diagnostics.isEmpty()) {
-        return tempDir;
-      } else {
-        final StringBuilder causeBuilder = new StringBuilder(
-            "The following halted compilation:\n");
+      try {
+        final File tempDir = Util.getTemporaryDirectory();
         
-        for (final Diagnostic<? extends JavaFileObject> diagnostic : diagnostics) {
-          causeBuilder.append(String.format("%s! %s%n", diagnostic.getKind(),
-              diagnostic.getMessage(null)));
+        final DiagnosticCollector<JavaFileObject> diagnosticListener = new DiagnosticCollector<JavaFileObject>();
+        final StandardJavaFileManager fileManager = compiler
+            .getStandardFileManager(diagnosticListener, null, null);
+        fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections
+            .singleton(tempDir));
+        fileManager.setLocation(StandardLocation.CLASS_PATH, classpath);
+        
+        final Iterable<? extends JavaFileObject> javaFiles = fileManager
+            .getJavaFileObjects(buildFile);
+        
+        // add debug info
+        final List<String> options = Arrays.asList("-g");
+        
+        compiler.getTask(null, fileManager, diagnosticListener, options, null,
+            javaFiles).call();
+        
+        final List<Diagnostic<? extends JavaFileObject>> diagnostics = diagnosticListener
+            .getDiagnostics();
+        if (diagnostics.isEmpty()) {
+          return tempDir;
+        } else {
+          final StringBuilder causeBuilder = new StringBuilder(
+              "The following halted compilation:\n");
+          
+          for (final Diagnostic<? extends JavaFileObject> diagnostic : diagnostics) {
+            causeBuilder.append(String.format("%s! %s%n", diagnostic.getKind(),
+                diagnostic.getMessage(null)));
+          }
+          
+          throw new CompilationFailedException(causeBuilder.toString());
         }
-        
-        throw new CompilationFailedException(causeBuilder.toString());
+      } catch (final IOException e) {
+        throw new CompilationFailedException(e);
       }
-    } catch (final IOException e) {
-      throw new CompilationFailedException(e);
+    } finally {
+      Log.get().indentLess();
     }
-    
   }
   
   /**
