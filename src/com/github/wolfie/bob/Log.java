@@ -77,6 +77,8 @@ public class Log {
   
   private static final int MAX_LOCATION_LENGTH = 8;
   
+  private static final int INDENT_MULTIPLIER = 2;
+  
   // lazy initialization
   private volatile static Log singleton = null;
   
@@ -86,6 +88,8 @@ public class Log {
   
   private final PrintStream out = System.out;
   private final PrintStream err = System.err;
+  
+  private int indent = 0;
   
   private Log() {
   }
@@ -110,7 +114,7 @@ public class Log {
     return this;
   }
   
-  private synchronized boolean isLoggingAt(final LogLevel level) {
+  public synchronized boolean isLoggingAt(final LogLevel level) {
     return level.ordinal() <= logLevel.ordinal();
   }
   
@@ -124,9 +128,20 @@ public class Log {
       
       final String alignedStack = Util.rightAlign(logStack.peek(),
           MAX_LOCATION_LENGTH);
-      getPrintStream(level).format("[%s] %s\n", alignedStack, msg);
+      getPrintStream(level).format("[%s]%s%s\n", alignedStack,
+          getIndentationString(), msg);
     }
     return this;
+  }
+  
+  private String getIndentationString() {
+    // TODO: this can be cached instead of regenerated each time.
+    final int indentLength = indent * INDENT_MULTIPLIER + 1;
+    final StringBuilder builder = new StringBuilder(indentLength);
+    for (int i = 0; i < indentLength; i++) {
+      builder.append(' ');
+    }
+    return builder.toString();
   }
   
   private synchronized PrintStream getPrintStream(final LogLevel level) {
@@ -165,5 +180,16 @@ public class Log {
     log(new MultiLog(shortLog, LogLevel.VERBOSE)
         .or(longLog, LogLevel.DEBUG));
     return this;
+  }
+  
+  public void indentMore() {
+    indent++;
+  }
+  
+  public void indentLess() {
+    indent--;
+    if (indent < 0) {
+      throw new IllegalStateException("Indentation was set to negative.");
+    }
   }
 }
