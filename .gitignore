@@ -2,3 +2,4 @@
 .project
 .settings
 artifacts
+/dist/lib/bob.jar
