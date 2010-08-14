@@ -348,10 +348,9 @@ public final class Bob {
     final Builder cacheBuilder = new CompilationCache.Builder(classOutputDir);
     
     for (final String sourcePath : desc.getSourcePaths()) {
-      Touple<Set<File>, Set<URI>> touple;
+      Tuple<Set<File>, Set<URI>> tuple;
       try {
-        touple = compile(sourcePath,
-            classPath, classOutputDir);
+        tuple = compile(sourcePath, classPath, classOutputDir);
       } catch (final NotADirectoryOrCouldNotReadException e) {
         if (desc.isSourcePathOptional(sourcePath)) {
           continue;
@@ -360,7 +359,7 @@ public final class Bob {
         }
       }
       
-      cacheBuilder.add(sourcePath, touple.getFirst(), touple.getSecond());
+      cacheBuilder.add(sourcePath, tuple.getFirst(), tuple.getSecond());
     }
     
     final BootstrapInfo info = new BootstrapInfo(cacheBuilder.commit(),
@@ -373,12 +372,12 @@ public final class Bob {
    * @param sourcePath
    * @param classPath
    * @param classOutputDir
-   * @return A {@link Touple} of source files to their respective class file
+   * @return A {@link Tuple} of source files to their respective class file
    *         URIs
    * @throws IOException
    * @throws NotADirectoryOrCouldNotReadException
    */
-  private static Touple<Set<File>, Set<URI>> compile(
+  private static Tuple<Set<File>, Set<URI>> compile(
       final String sourcePath,
       final Iterable<File> classPath, final File classOutputDir)
       throws IOException, NotADirectoryOrCouldNotReadException {
@@ -393,7 +392,7 @@ public final class Bob {
     
     if (sourceFiles.isEmpty()) {
       Log.get().log("Nothing to compile, returning...", LogLevel.DEBUG);
-      return Touple.of((Set<File>) new HashSet<File>(),
+      return Tuple.of((Set<File>) new HashSet<File>(),
           (Set<URI>) new HashSet<URI>());
     }
     
@@ -421,9 +420,9 @@ public final class Bob {
         System.err.println(problem);
       }
       System.exit(1);
-      return Touple.ofNull();
+      return Tuple.ofNull();
     } else {
-      return Touple.of(sourceFiles, fileManager
+      return Tuple.of(sourceFiles, fileManager
           .getJavaFileURIs());
     }
   }
