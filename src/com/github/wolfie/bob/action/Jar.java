@@ -66,7 +66,7 @@ public class Jar implements Action {
    */
   protected String archiveClassSourceDestination = "";
   
-  private boolean manifestPathIsDefault = false;;
+  private boolean manifestPathIsDefault = false;
   
   @Override
   public final void process() {
