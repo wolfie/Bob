@@ -8,7 +8,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.wolfie.bob.Log.LogLevel;
+import com.github.wolfie.bob.util.Log;
+import com.github.wolfie.bob.util.Util;
+import com.github.wolfie.bob.util.Log.LogLevel;
 
 public final class CompilationCache implements Serializable {
   

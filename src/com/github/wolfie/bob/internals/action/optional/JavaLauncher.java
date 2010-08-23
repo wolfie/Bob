@@ -1,4 +1,4 @@
-package com.github.wolfie.bob.action.optional;
+package com.github.wolfie.bob.internals.action.optional;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -18,10 +18,10 @@ import java.util.Set;
 
 import org.apache.tools.ant.taskdefs.PumpStreamHandler;
 
-import com.github.wolfie.bob.Log;
-import com.github.wolfie.bob.Log.LogLevel;
-import com.github.wolfie.bob.Util;
 import com.github.wolfie.bob.exception.BobRuntimeException;
+import com.github.wolfie.bob.util.Log;
+import com.github.wolfie.bob.util.Util;
+import com.github.wolfie.bob.util.Log.LogLevel;
 
 public class JavaLauncher {
   
@@ -222,7 +222,7 @@ public class JavaLauncher {
     }
   }
   
-  private String findClassFromJars(final String classNameToLoad,
+  private static String findClassFromJars(final String classNameToLoad,
       final Map<String, ClassLoader> cache) {
     
     Log.get().log("Searching for " + classNameToLoad, LogLevel.DEBUG);

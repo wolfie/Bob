@@ -1,4 +1,4 @@
-package com.github.wolfie.bob;
+package com.github.wolfie.bob.util;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.channels.FileChannel;
@@ -18,14 +19,29 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.github.wolfie.bob.Log.LogLevel;
-import com.github.wolfie.bob.Log.MultiLog;
 import com.github.wolfie.bob.action.Action;
+import com.github.wolfie.bob.action.ArtifactProducer;
+import com.github.wolfie.bob.action.ArtifactProducer.FileProducer;
+import com.github.wolfie.bob.action.ArtifactProducer.PathProducer;
+import com.github.wolfie.bob.action.Compilation;
+import com.github.wolfie.bob.action.Jar;
+import com.github.wolfie.bob.action.War;
+import com.github.wolfie.bob.action.Zip;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
 import com.github.wolfie.bob.exception.BuildTargetException;
 import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
 import com.github.wolfie.bob.exception.NotAReadableDirectoryException;
+import com.github.wolfie.bob.internals._Action;
+import com.github.wolfie.bob.internals._ArtifactProducer;
+import com.github.wolfie.bob.internals._ArtifactProducer._FileProducer;
+import com.github.wolfie.bob.internals._ArtifactProducer._PathProducer;
+import com.github.wolfie.bob.internals.action._Compilation;
+import com.github.wolfie.bob.internals.action._Jar;
+import com.github.wolfie.bob.internals.action._War;
+import com.github.wolfie.bob.internals.action._Zip;
+import com.github.wolfie.bob.util.Log.LogLevel;
+import com.github.wolfie.bob.util.Log.MultiLog;
 
 public class Util {
   public interface FilePredicate {
@@ -467,5 +483,76 @@ public class Util {
     else {
       return string;
     }
+  }
+  
+  public static _Compilation getInternal(final Compilation action) {
+    return (_Compilation) getInternal((Action) action);
+  }
+  
+  public static _Jar getInternal(final Jar action) {
+    return (_Jar) getInternal((Action) action);
+  }
+  
+  public static _War getInternal(final War action) {
+    return (_War) getInternal((Action) action);
+  }
+  
+  public static _Zip getInternal(final Zip action) {
+    return (_Zip) getInternal((Action) action);
+  }
+  
+  public static _ArtifactProducer getInternal(final ArtifactProducer producer) {
+    return (_ArtifactProducer) getInternal((Action) producer);
+  }
+  
+  public static _FileProducer getInternal(final FileProducer producer) {
+    return (_FileProducer) getInternal((ArtifactProducer) producer);
+  }
+  
+  public static _PathProducer getInternal(final PathProducer producer) {
+    return (_PathProducer) getInternal((ArtifactProducer) producer);
+  }
+  
+  public static _Action getInternal(final Action action) {
+    
+    // BIG HACK AHOY!
+    
+    try {
+      try {
+        final Field field = action.getClass().getDeclaredField("internal");
+        field.setAccessible(true);
+        return (_Action) field.get(action);
+      }
+
+      catch (final NoSuchFieldException e) {
+        for (final Field field : action.getClass().getDeclaredFields()) {
+          field.setAccessible(true);
+          final Object fieldObject = field.get(action);
+          if (fieldObject instanceof _Action) {
+            return (_Action) fieldObject;
+          }
+        }
+      }
+    } catch (final Exception e) {
+      throw new BobRuntimeException(e);
+    }
+    throw new BobRuntimeException(
+        "couldn't find the internal implementation of "
+            + action.getClass().getName());
+  }
+  
+  public static void enterLog(final Action action) {
+    String entering = action.getClass().getSimpleName();
+    
+    if (entering.startsWith("_")) {
+      entering = entering.substring(1);
+    }
+    
+    if (entering.length() > Log.MAX_LOCATION_LENGTH) {
+      entering =
+          action.getClass().getSimpleName()
+              .substring(0, Log.MAX_LOCATION_LENGTH);
+    }
+    Log.get().enter(entering);
   }
 }

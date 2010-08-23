@@ -5,6 +5,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 
+import com.github.wolfie.bob.exception.BootstrapError;
+
 /**
  * This class contains all necessary information that will be passed from the
  * first run of Bob to the rebooted Bob.

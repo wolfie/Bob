@@ -1,4 +1,4 @@
-package com.github.wolfie.bob.action.optional;
+package com.github.wolfie.bob.internals.action.optional;
 
 /**
  * <h1>Result Property File Format</h1>

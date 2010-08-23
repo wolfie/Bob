@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.github.wolfie.bob.util.Util;
+
 public class ProjectDescription {
   
   private boolean finalized = false;

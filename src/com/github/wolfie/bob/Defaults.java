@@ -36,6 +36,10 @@ public final class Defaults {
   
   public static final String DEFAULT_TEST_SRC_PATH = "test";
   
+  // zip
+  
+  public static final String ZIP_PATH = ARTIFACTS_PATH + "/build.zip";
+  
   private Defaults() {
   }
 }

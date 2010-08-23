@@ -12,6 +12,8 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.github.wolfie.bob.util.Util;
+
 public class UtilTest {
   
   @Test(expected = NullPointerException.class)

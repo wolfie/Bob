@@ -5,12 +5,6 @@ package com.github.wolfie.bob.action;
  * target.
  * 
  * @author Henrik Paul
- * @since 1.0.0
  */
 public interface Action {
-  
-  /**
-   * Process the action itself.
-   */
-  void process();
 }

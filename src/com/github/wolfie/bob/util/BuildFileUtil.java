@@ -1,4 +1,4 @@
-package com.github.wolfie.bob;
+package com.github.wolfie.bob.util;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -24,9 +24,13 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-import com.github.wolfie.bob.Log.LogLevel;
+import com.github.wolfie.bob.BobBuild;
+import com.github.wolfie.bob.BootClassLoader;
+import com.github.wolfie.bob.Defaults;
+import com.github.wolfie.bob.ProjectDescription;
 import com.github.wolfie.bob.annotation.Target;
 import com.github.wolfie.bob.exception.BobRuntimeException;
+import com.github.wolfie.bob.util.Log.LogLevel;
 
 public class BuildFileUtil {
   private static final String METHOD_RETURN_TYPE_REGEXP = "\\p{Alnum}+\\s+";

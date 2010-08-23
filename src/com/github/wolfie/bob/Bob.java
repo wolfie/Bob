@@ -32,12 +32,10 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
-import com.github.wolfie.bob.BuildFileUtil.TargetInfo;
 import com.github.wolfie.bob.CompilationCache.Builder;
-import com.github.wolfie.bob.Log.LogLevel;
 import com.github.wolfie.bob.action.Action;
-import com.github.wolfie.bob.action.optional.JavaLauncher;
 import com.github.wolfie.bob.annotation.Target;
+import com.github.wolfie.bob.exception.BootstrapError;
 import com.github.wolfie.bob.exception.BuildTargetException;
 import com.github.wolfie.bob.exception.CompilationFailedException;
 import com.github.wolfie.bob.exception.IncompatibleReturnTypeException;
@@ -47,12 +45,17 @@ import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
 import com.github.wolfie.bob.exception.SeveralDefaultBuildTargetMethodsFoundException;
 import com.github.wolfie.bob.exception.UnexpectedArgumentAmountException;
 import com.github.wolfie.bob.exception.UnrecognizedArgumentException;
+import com.github.wolfie.bob.internals.action.optional.JavaLauncher;
+import com.github.wolfie.bob.util.BuildFileUtil;
+import com.github.wolfie.bob.util.BuildFileUtil.TargetInfo;
+import com.github.wolfie.bob.util.Log;
+import com.github.wolfie.bob.util.Log.LogLevel;
+import com.github.wolfie.bob.util.Util;
 
 /**
  * Non-XML Builder
  * 
  * @author Henrik Paul
- * @since 1.0.0
  */
 public final class Bob {
   
@@ -189,9 +192,13 @@ public final class Bob {
     
     if (action != null) {
       Log.get().log("Processing " + action, LogLevel.DEBUG);
-      Log.get().enter(action.getClass().getSimpleName());
+      
+      Util.enterLog(action);
+      
       try {
-        action.process();
+        Util.getInternal(action).process();
+      } catch (final Exception e) {
+        throw new BootstrapError(e);
       } finally {
         Log.get().exit();
       }
@@ -372,8 +379,7 @@ public final class Bob {
    * @param sourcePath
    * @param classPath
    * @param classOutputDir
-   * @return A {@link Tuple} of source files to their respective class file
-   *         URIs
+   * @return A {@link Tuple} of source files to their respective class file URIs
    * @throws IOException
    * @throws NotADirectoryOrCouldNotReadException
    */

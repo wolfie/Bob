@@ -1,4 +1,4 @@
-package com.github.wolfie.bob;
+package com.github.wolfie.bob.exception;
 
 public class BootstrapError extends Error {
   private static final long serialVersionUID = 4028361969617154737L;

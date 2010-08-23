@@ -1,14 +1,6 @@
 package com.github.wolfie.bob.action;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Map;
-
-import com.github.wolfie.bob.Defaults;
-import com.github.wolfie.bob.Util;
-import com.github.wolfie.bob.exception.NotADirectoryOrCouldNotReadException;
-import com.github.wolfie.bob.exception.ProcessingError;
+import com.github.wolfie.bob.internals.action._War;
 
 /**
  * <p>
@@ -37,85 +29,11 @@ import com.github.wolfie.bob.exception.ProcessingError;
  * </ul>
  * 
  * @author Henrik Paul
- * @since 1.0.0
  */
-public class War extends Jar {
+public class War extends Jar implements Action,
+    ArtifactProducer.FileProducer {
   
-  private static final String WEB_XML_PATH = "WEB-INF/web.xml";
-  
-  private String webContentPath = null;
-  private String webXmlPath = null;
-  
-  @Override
-  protected void setDefaults() {
-    if (super.manifestPath == null) {
-      super.manifestPath = Defaults.WAR_MANIFEST_PATH;
-    }
-    
-    if (super.toPath == null) {
-      super.toPath = Defaults.WAR_PATH;
-    }
-    
-    if (webContentPath == null) {
-      webContentPath = Defaults.WEB_CONTENT_PATH;
-    }
-    
-    // WARs have classes and sources here, not in the root
-    super.archiveClassSourceDestination = "WEB-INF/classes/";
-    
-    super.setDefaults();
-  }
-  
-  @Override
-  protected void subClassProcessHook(final Map<String, File> entryMap) {
-    
-    System.out.println("Finding web content files from " + webContentPath);
-    final File webContentDirectory = new File(webContentPath);
-    
-    Collection<File> webContentFiles;
-    try {
-      webContentFiles = getWebContentFiles();
-    } catch (final NotADirectoryOrCouldNotReadException e) {
-      throw new ProcessingError(e);
-    }
-    
-    for (final File webFile : webContentFiles) {
-      
-      final String entryName = Util.relativeFileName(webContentDirectory,
-          webFile);
-      
-      if (webXmlPath != null && entryName.equals(WEB_XML_PATH)) {
-        continue;
-      }
-      
-      System.out.println(entryName + " <- " + webFile.getAbsolutePath());
-      entryMap.put(entryName, webFile);
-    }
-    
-    if (webXmlPath != null) {
-      final File webXmlFile = new File(webXmlPath);
-      if (webXmlFile.isFile()) {
-        System.out.println("Using " + webXmlFile.getAbsolutePath()
-            + " as web.xml");
-        entryMap.put(WEB_XML_PATH, webXmlFile);
-      } else {
-        System.err.println(webXmlPath + " is not an existing file.");
-      }
-    }
-    
-    super.subClassProcessHook(entryMap);
-  }
-  
-  /**
-   * @throws IOException
-   *           see {@link Util#getFilesRecursively(File)}
-   * @throws NotADirectoryOrCouldNotReadException
-   */
-  private Collection<File> getWebContentFiles()
-      throws NotADirectoryOrCouldNotReadException {
-    System.out.println("Finding web archive files");
-    return Util.getFilesRecursively(new File(webContentPath));
-  }
+  private final _War internal = new _War();
   
   /**
    * Explicitly define which file to use as the <tt>web.xml</tt> file.
@@ -125,8 +43,7 @@ public class War extends Jar {
    * @return <code>this</code>
    */
   public War withWebXmlFrom(final String path) {
-    Util.checkNulls(path);
-    webXmlPath = path;
+    internal.withWebXmlFrom(path);
     return this;
   }
   
@@ -138,8 +55,7 @@ public class War extends Jar {
    * @return <code>this</code>
    */
   public War withWebContentFrom(final String path) {
-    Util.checkNulls(path);
-    webContentPath = path;
+    internal.withWebContentFrom(path);
     return this;
   }
 }

@@ -1,4 +1,4 @@
-package com.github.wolfie.bob.action.optional;
+package com.github.wolfie.bob.internals.action.optional;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -12,7 +12,7 @@ import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 
-import com.github.wolfie.bob.Util;
+import com.github.wolfie.bob.util.Util;
 
 /**
  * A Java executable that runs an amount of JUnit tests.

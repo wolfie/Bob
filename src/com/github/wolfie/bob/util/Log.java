@@ -1,4 +1,4 @@
-package com.github.wolfie.bob;
+package com.github.wolfie.bob.util;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -15,25 +15,25 @@ public class Log {
      * execution.
      */
     SEVERE,
-    
+
     /**
      * Something didn't work out as they should, but the show can still go on
      */
     WARNING,
-    
+
     /**
      * General good-to-know information for the user. Should be kept to an
      * absolute minimum.
      */
     INFO,
-    
+
     /**
      * Information for the common user about what is going on at each stage of
      * the execution. Understanding these messages should not require any
      * knowledge of the inner workings of the application.
      */
     VERBOSE,
-    
+
     /**
      * Stuff for developers' interests. Information about the inner workings of
      * the application, which would most probably be mumbo-jumbo for the common
@@ -75,7 +75,7 @@ public class Log {
     }
   }
   
-  private static final int MAX_LOCATION_LENGTH = 8;
+  public static final int MAX_LOCATION_LENGTH = 8;
   
   private static final int INDENT_MULTIPLIER = 2;
   
